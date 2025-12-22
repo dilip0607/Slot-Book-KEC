@@ -35,10 +35,11 @@ app.get('/api/events/:id/registrations', protect, admin, controllers.getEventReg
 
 // Serve static assets if in production
 if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, 'client/dist')));
+    const distPath = path.join(__dirname, 'client/dist');
+    app.use(express.static(distPath));
 
-    app.get(/.*/, (req, res) => {
-        res.sendFile(path.resolve(__dirname, 'client', 'dist', 'index.html'));
+    app.get('*', (req, res) => {
+        res.sendFile(path.resolve(distPath, 'index.html'));
     });
 } else {
     app.get('/', (req, res) => {

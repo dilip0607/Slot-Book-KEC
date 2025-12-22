@@ -15,7 +15,7 @@ const AdminDashboard = () => {
 
     const fetchEvents = async () => {
         try {
-            const { data } = await axios.get('http://localhost:3001/api/events', {
+            const { data } = await axios.get('/api/events', {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
             setEvents(data);
@@ -34,7 +34,7 @@ const AdminDashboard = () => {
         setSuccess('');
 
         try {
-            await axios.post('http://localhost:3001/api/events',
+            await axios.post('/api/events',
                 { title, testDate, totalSlots: Number(totalSlots) },
                 { headers: { Authorization: `Bearer ${user.token}` } }
             );
@@ -51,7 +51,7 @@ const AdminDashboard = () => {
     const handleDeleteEvent = async (id) => {
         if (!window.confirm('Are you sure you want to delete this event? This action will close registrations.')) return;
         try {
-            await axios.delete(`http://localhost:3001/api/events/${id}`, {
+            await axios.delete(`/api/events/${id}`, {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
             fetchEvents();
@@ -67,7 +67,7 @@ const AdminDashboard = () => {
         }
 
         try {
-            const { data } = await axios.get(`http://localhost:3001/api/events/${eventId}/registrations`, {
+            const { data } = await axios.get(`/api/events/${eventId}/registrations`, {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
             setRegistrations(data);

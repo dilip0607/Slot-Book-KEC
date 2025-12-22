@@ -10,7 +10,7 @@ const UserDashboard = () => {
 
     const fetchEvents = async () => {
         try {
-            const { data } = await axios.get('http://localhost:3001/api/events', {
+            const { data } = await axios.get('/api/events', {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
             // Users should only see active events? 
@@ -33,7 +33,7 @@ const UserDashboard = () => {
     const handleRegister = async (eventId) => {
         setMessage('');
         try {
-            await axios.post('http://localhost:3001/api/register',
+            await axios.post('/api/register',
                 { eventId },
                 { headers: { Authorization: `Bearer ${user.token}` } }
             );
