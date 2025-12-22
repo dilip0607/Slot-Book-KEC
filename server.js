@@ -38,7 +38,7 @@ if (process.env.NODE_ENV === 'production') {
     const distPath = path.join(__dirname, 'client/dist');
     app.use(express.static(distPath));
 
-    app.get('*', (req, res) => {
+    app.get('*path', (req, res) => {
         res.sendFile(path.resolve(distPath, 'index.html'));
     });
 } else {
