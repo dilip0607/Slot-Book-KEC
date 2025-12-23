@@ -127,9 +127,13 @@ exports.register = async (req, res) => {
             });
 
             // Trigger Notification Emails
+            console.log('--- Triggering Email Service ---');
             try {
                 const user = await User.findById(req.user._id);
                 const event = await Event.findById(eventId);
+
+                console.log(`User Email found: ${user.email}`);
+                console.log(`Event Title found: ${event.title}`);
 
                 await emailService.sendBookingConfirmation(
                     user.email,

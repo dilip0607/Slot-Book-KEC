@@ -19,6 +19,9 @@ const transporter = nodemailer.createTransport({
  */
 const sendBookingConfirmation = async (userEmail, userName, eventTitle, eventDate) => {
     try {
+        console.log(`Attempting to send confirmation email to: ${userEmail}`);
+        console.log(`Using EMAIL_USER: ${process.env.EMAIL_USER}`);
+
         const mailOptions = {
             from: `"KEC Slot Booking" <${process.env.EMAIL_USER}>`,
             to: userEmail,
@@ -40,7 +43,7 @@ const sendBookingConfirmation = async (userEmail, userName, eventTitle, eventDat
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log('Confirmation email sent: %s', info.messageId);
+        console.log('✅ Confirmation email sent successfully!');
         return info;
     } catch (error) {
         console.error('Error sending confirmation email:', error);
