@@ -74,7 +74,12 @@ const AdminDashboard = () => {
                     title,
                     description,
                     targetAudience,
-                    slots: slots.map(s => ({ ...s, totalSlots: Number(s.totalSlots) }))
+                    slots: slots.map(s => ({
+                        ...s,
+                        totalSlots: Number(s.totalSlots),
+                        // Append IST offset so backend treats input as IST regardless of server time
+                        startTime: new Date(`${s.startTime}:00+05:30`)
+                    }))
                 },
                 { headers: { Authorization: `Bearer ${user.token}` } }
             );
@@ -190,7 +195,7 @@ const AdminDashboard = () => {
                         {slots.map((slot, index) => (
                             <div key={index} className="flex flex-col md:flex-row gap-4 mb-4 items-end">
                                 <div className="flex-1">
-                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Date & Start Time</label>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Date & Start Time (IST)</label>
                                     <input
                                         type="datetime-local"
                                         required
