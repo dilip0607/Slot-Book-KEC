@@ -1,5 +1,6 @@
 const Event = require('./models/Event');
 const Registration = require('./models/Registration');
+const XLSX = require('xlsx');
 
 // @desc    Get all events
 // @route   GET /api/events
@@ -151,5 +152,47 @@ exports.getEventRegistrations = async (req, res) => {
         res.json(registrations);
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// @desc    Export registrations to Excel
+// @route   GET /api/events/:id/export
+// @access  Private/Admin
+exports.exportEventRegistrations = async (req, res) => {
+    try {
+        const registrations = await Registration.find({ event: req.params.id })
+            .populate('user', 'name email')
+            .populate('event', 'title')
+            .sort({ registeredAt: 1 });
+
+        if (registrations.length === 0) {
+            return res.status(404).json({ message: 'No registrations found to export' });
+        }
+
+        const data = registrations.map(reg => ({
+            'Event Title': reg.event.title,
+            'User Name': reg.user.name,
+            'User Email': reg.user.email,
+            'Registration Date': new Date(reg.registeredAt).toLocaleString()
+        }));
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Registrations');
+
+        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+        const fileName = `Registrations_${registrations[0].event.title.replace(/\s+/g, '_')}.xlsx`;
+
+        res.set({
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="${fileName}"`,
+            'Content-Length': buffer.length
+        });
+
+        res.send(buffer);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error during Excel export' });
     }
 };

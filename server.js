@@ -32,6 +32,7 @@ app.post('/api/register', protect, controllers.register);
 app.post('/api/events', protect, admin, controllers.createEvent);
 app.delete('/api/events/:id', protect, admin, controllers.deleteEvent);
 app.get('/api/events/:id/registrations', protect, admin, controllers.getEventRegistrations);
+app.get('/api/events/:id/export', protect, admin, controllers.exportEventRegistrations);
 
 // Serve static assets if in production
 if (process.env.NODE_ENV === 'production') {

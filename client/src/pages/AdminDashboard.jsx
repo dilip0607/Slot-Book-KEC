@@ -77,6 +77,26 @@ const AdminDashboard = () => {
         }
     };
 
+    const handleExportExcel = async (eventId, eventTitle) => {
+        try {
+            const response = await axios.get(`/api/events/${eventId}/export`, {
+                headers: { Authorization: `Bearer ${user.token}` },
+                responseType: 'blob'
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Registrations_${eventTitle.replace(/\s+/g, '_')}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (err) {
+            console.error(err);
+            alert('Failed to export Excel');
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
             <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 mb-8">Admin Dashboard</h1>
@@ -152,6 +172,9 @@ const AdminDashboard = () => {
                                             <button onClick={() => handleDeleteEvent(event._id)} className="text-red-500 hover:text-red-700 font-semibold transition-colors">Delete</button>
                                             <button onClick={() => handleViewRegistrations(event._id)} className="text-indigo-600 hover:text-indigo-800 font-semibold transition-colors">
                                                 {expandedEvent === event._id ? 'Hide' : 'View'} Registrations
+                                            </button>
+                                            <button onClick={() => handleExportExcel(event._id, event.title)} className="text-green-600 hover:text-green-800 font-semibold transition-colors">
+                                                Export Excel
                                             </button>
                                         </td>
                                     </tr>
