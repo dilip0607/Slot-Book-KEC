@@ -225,6 +225,39 @@ exports.exportEventRegistrations = async (req, res) => {
     }
 };
 
+// @desc    Update an event
+// @route   PUT /api/events/:id
+// @access  Private/Admin
+exports.updateEvent = async (req, res) => {
+    const { title, testDate, totalSlots, isActive } = req.body;
+
+    try {
+        const event = await Event.findById(req.params.id);
+
+        if (event) {
+            // Validation: totalSlots cannot be less than current bookedSlots
+            if (totalSlots < event.bookedSlots) {
+                return res.status(400).json({
+                    message: `Total slots cannot be less than current booked slots (${event.bookedSlots})`
+                });
+            }
+
+            event.title = title || event.title;
+            event.testDate = testDate || event.testDate;
+            event.totalSlots = totalSlots !== undefined ? totalSlots : event.totalSlots;
+            event.isActive = isActive !== undefined ? isActive : event.isActive;
+
+            const updatedEvent = await event.save();
+            res.json(updatedEvent);
+        } else {
+            res.status(404).json({ message: 'Event not found' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(400).json({ message: 'Invalid event data' });
+    }
+};
+
 // @desc    Get current user's registrations
 // @route   GET /api/my-registrations
 // @access  Private
