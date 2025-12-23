@@ -4,14 +4,22 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // Create a transporter using SMTP
+// Port 587 works locally, but some cloud providers (like Render) may block it
+// Port 465 with secure:true is more reliable in production
+const emailPort = parseInt(process.env.EMAIL_PORT) || 465;
+const isSecure = emailPort === 465;
+
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: process.env.EMAIL_PORT || 587,
-    secure: false, // true for 465, false for other ports
+    port: emailPort,
+    secure: isSecure, // true for 465, false for other ports
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
 });
 
 /**
