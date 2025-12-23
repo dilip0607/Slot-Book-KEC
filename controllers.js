@@ -237,12 +237,26 @@ exports.exportEventRegistrations = async (req, res) => {
             return res.status(404).json({ message: 'No registrations found to export' });
         }
 
-        const data = registrations.map(reg => ({
-            'Event Title': reg.event.title,
-            'User Name': reg.user.name,
-            'User Email': reg.user.email,
-            'Registration Date': new Date(reg.registeredAt).toLocaleString()
-        }));
+        const data = registrations.map(reg => {
+            const user = reg.user;
+            const event = reg.event;
+            const slot = event.slots.find(s => s._id.toString() === reg.slotId.toString());
+
+            return {
+                'Event Title': event.title,
+                'Slot Time': slot ? new Date(slot.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
+                'User Name': user.name,
+                'Roll No': user.rollNumber || 'N/A',
+                'Department': user.department || 'N/A',
+                'Section': user.section || 'N/A',
+                'Year': user.year || 'N/A',
+                'Mobile': user.mobile || 'N/A',
+                'Student Type': user.studentType || 'N/A',
+                'Gender': user.gender || 'N/A',
+                'User Email': user.email,
+                'Registration Date': new Date(reg.registeredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+            };
+        });
 
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(data);
