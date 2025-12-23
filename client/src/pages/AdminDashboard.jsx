@@ -190,13 +190,14 @@ const AdminDashboard = () => {
                         {slots.map((slot, index) => (
                             <div key={index} className="flex flex-col md:flex-row gap-4 mb-4 items-end">
                                 <div className="flex-1">
-                                    <label className="block text-xs text-gray-500 mb-1">Slot Start Time</label>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Date & Start Time</label>
                                     <input
                                         type="datetime-local"
                                         required
                                         value={slot.startTime}
                                         onChange={(e) => handleSlotChange(index, 'startTime', e.target.value)}
-                                        className="input-field"
+                                        className="input-field w-full"
+                                        placeholder="Select Date and Time"
                                     />
                                 </div>
                                 <div className="w-full md:w-32">
