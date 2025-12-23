@@ -5,29 +5,26 @@ import { useAuth } from '../context/AuthContext';
 const UserDashboard = () => {
     const { user } = useAuth();
     const [events, setEvents] = useState([]);
+    const [myRegistrations, setMyRegistrations] = useState([]);
     const [message, setMessage] = useState('');
     const [msgType, setMsgType] = useState(''); // 'success' or 'error'
 
-    const fetchEvents = async () => {
+    const fetchData = async () => {
         try {
-            const { data } = await axios.get('/api/events', {
-                headers: { Authorization: `Bearer ${user.token}` }
-            });
-            // Users should only see active events? 
-            // Admin lists all. User dashboard should probably show all but indicate status?
-            // "View only active events" -> Requirement.
-            // But controller returns all. I should filter client side or API side.
-            // I'll filter client side for better UX (show full ones too?)
-            // Requirement: "View only active events". Deleted events are removed. Inactive?
-            // My model has `isActive`.
-            setEvents(data.filter(e => e.isActive));
+            const [eventsRes, myRegsRes] = await Promise.all([
+                axios.get('/api/events', { headers: { Authorization: `Bearer ${user.token}` } }),
+                axios.get('/api/my-registrations', { headers: { Authorization: `Bearer ${user.token}` } })
+            ]);
+
+            setEvents(eventsRes.data.filter(e => e.isActive));
+            setMyRegistrations(myRegsRes.data);
         } catch (err) {
             console.error(err);
         }
     };
 
     useEffect(() => {
-        fetchEvents();
+        fetchData();
     }, [user.token]);
 
     const handleRegister = async (eventId) => {
@@ -39,18 +36,34 @@ const UserDashboard = () => {
             );
             setMessage('Slot confirmed successfully.');
             setMsgType('success');
-            fetchEvents(); // Refresh to show updated slots
+            fetchData();
         } catch (err) {
             setMessage(err.response?.data?.message || 'Registration failed');
             setMsgType('error');
-            fetchEvents(); // Refresh to show true state
+            fetchData();
+        }
+    };
+
+    const handleCancel = async (regId) => {
+        if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+
+        try {
+            await axios.delete(`/api/registrations/${regId}`, {
+                headers: { Authorization: `Bearer ${user.token}` }
+            });
+            setMessage('Booking cancelled successfully.');
+            setMsgType('success');
+            fetchData();
+        } catch (err) {
+            setMessage(err.response?.data?.message || 'Cancellation failed');
+            setMsgType('error');
         }
     };
 
     return (
         <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-purple-600 mb-2">Available Events</h1>
-            <p className="text-gray-500 mb-8">Book your slot before time runs out!</p>
+            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-purple-600 mb-2">User Dashboard</h1>
+            <p className="text-gray-500 mb-8">Manage your bookings and explore new slots.</p>
 
             {message && (
                 <div className={`p-4 mb-6 rounded-lg border-l-4 shadow-sm ${msgType === 'success' ? 'bg-green-50 text-green-700 border-green-500' : 'bg-red-50 text-red-700 border-red-500'}`}>
@@ -58,6 +71,34 @@ const UserDashboard = () => {
                 </div>
             )}
 
+            {/* My Bookings Section */}
+            {myRegistrations.length > 0 && (
+                <div className="mb-12">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <svg className="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                        My Registered Slots
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {myRegistrations.map((reg) => (
+                            <div key={reg._id} className="bg-white border-2 border-indigo-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                                <h3 className="text-lg font-bold text-gray-900 mb-2">{reg.event?.title}</h3>
+                                <p className="text-sm text-gray-500 mb-4 flex items-center">
+                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    {new Date(reg.event?.testDate).toLocaleDateString()}
+                                </p>
+                                <button
+                                    onClick={() => handleCancel(reg._id)}
+                                    className="w-full py-2 rounded-lg text-red-600 font-semibold text-sm border-2 border-red-100 hover:bg-red-50 hover:border-red-200 transition-all"
+                                >
+                                    Cancel Registration
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Available Events</h2>
             <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {events.map((event) => {
                     const isFull = event.bookedSlots >= event.totalSlots;

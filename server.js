@@ -28,6 +28,9 @@ app.get('/api/events', protect, controllers.getAllEvents);
 app.get('/api/events/:id', protect, controllers.getEventStatus);
 app.post('/api/register', protect, controllers.register);
 
+app.get('/api/my-registrations', protect, controllers.getMyRegistrations);
+app.delete('/api/registrations/:id', protect, controllers.cancelRegistration);
+
 // Admin Routes
 app.post('/api/events', protect, admin, controllers.createEvent);
 app.delete('/api/events/:id', protect, admin, controllers.deleteEvent);

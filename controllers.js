@@ -1,6 +1,8 @@
 const Event = require('./models/Event');
 const Registration = require('./models/Registration');
+const User = require('./models/User');
 const XLSX = require('xlsx');
+const emailService = require('./emailService');
 
 // @desc    Get all events
 // @route   GET /api/events
@@ -123,9 +125,35 @@ exports.register = async (req, res) => {
                 message: 'Slot confirmed successfully.',
                 registration
             });
+
+            // Trigger Notification Emails
+            try {
+                const user = await User.findById(req.user._id);
+                const event = await Event.findById(eventId);
+
+                await emailService.sendBookingConfirmation(
+                    user.email,
+                    user.name,
+                    event.title,
+                    event.testDate
+                );
+
+                if (updatedEvent.bookedSlots === updatedEvent.totalSlots) {
+                    const adminUser = await User.findOne({ isAdmin: true });
+                    if (adminUser) {
+                        await emailService.notifyAdminEventFull(
+                            adminUser.email,
+                            event.title,
+                            event.totalSlots
+                        );
+                    }
+                }
+            } catch (emailErr) {
+                console.error('Post-registration email background task failed:', emailErr);
+            }
+
         } catch (regError) {
             // Rollback slot if registration creation fails (e.g. duplicate user)
-            // But we have a unique index on user+event, so this will catch double booking by same user
             await Event.findByIdAndUpdate(eventId, { $inc: { bookedSlots: -1 } });
 
             if (regError.code === 11000) {
@@ -194,5 +222,49 @@ exports.exportEventRegistrations = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error during Excel export' });
+    }
+};
+
+// @desc    Get current user's registrations
+// @route   GET /api/my-registrations
+// @access  Private
+exports.getMyRegistrations = async (req, res) => {
+    try {
+        const registrations = await Registration.find({ user: req.user._id })
+            .populate('event')
+            .sort({ registeredAt: -1 });
+        res.json(registrations);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// @desc    Cancel a registration
+// @route   DELETE /api/registrations/:id
+// @access  Private
+exports.cancelRegistration = async (req, res) => {
+    try {
+        const registration = await Registration.findById(req.params.id);
+
+        if (!registration) {
+            return res.status(404).json({ message: 'Registration not found' });
+        }
+
+        // Check ownership
+        if (registration.user.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'Not authorized to cancel this booking' });
+        }
+
+        const eventId = registration.event;
+
+        // Atomic update: remove registration and decrement slot
+        await registration.deleteOne();
+        await Event.findByIdAndUpdate(eventId, { $inc: { bookedSlots: -1 } });
+
+        res.json({ message: 'Registration cancelled successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
     }
 };
