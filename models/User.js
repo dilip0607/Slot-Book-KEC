@@ -20,6 +20,33 @@ const userSchema = new mongoose.Schema({
         enum: ['USER', 'ADMIN'],
         default: 'USER'
     },
+    rollNumber: {
+        type: String,
+        unique: true,
+        sparse: true // Allows null/undefined for existing admins, but we'll enforce for new users
+    },
+    department: {
+        type: String
+    },
+    section: {
+        type: String
+    },
+    year: {
+        type: String,
+        enum: ['1', '2', '3', '4']
+    },
+    mobile: {
+        type: String
+    },
+    studentType: {
+        type: String,
+        enum: ['Day Scholar', 'Hosteller']
+    },
+    gender: {
+        type: String,
+        enum: ['Male', 'Female']
+        // Required only if Hosteller, handled in controller validation
+    },
     createdAt: {
         type: Date,
         default: Date.now

@@ -9,7 +9,20 @@ const emailService = require('./emailService');
 // @access  Private
 exports.getAllEvents = async (req, res) => {
     try {
-        const events = await Event.find({}).sort({ createdAt: -1 });
+        let query = {};
+
+        // If not admin, filter by target audience
+        if (req.user.role !== 'ADMIN') {
+            query = {
+                $or: [
+                    { targetAudience: 'Common' },
+                    { targetAudience: req.user.studentType }
+                ],
+                isActive: true
+            };
+        }
+
+        const events = await Event.find(query).sort({ createdAt: -1 });
         res.json(events);
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });
@@ -36,19 +49,25 @@ exports.getEventStatus = async (req, res) => {
 // @route   POST /api/events
 // @access  Private/Admin
 exports.createEvent = async (req, res) => {
-    const { title, testDate, totalSlots } = req.body;
+    const { title, description, targetAudience, slots } = req.body;
 
     try {
+        // Basic validation
+        if (!slots || slots.length === 0) {
+            return res.status(400).json({ message: 'At least one slot is required.' });
+        }
+
         const event = new Event({
             title,
-            testDate,
-            totalSlots,
-            bookedSlots: 0
+            description,
+            targetAudience,
+            slots, // Array of { startTime, endTime, totalSlots }
         });
 
         const createdEvent = await event.save();
         res.status(201).json(createdEvent);
     } catch (error) {
+        console.error(error);
         res.status(400).json({ message: 'Invalid event data' });
     }
 };
@@ -80,45 +99,68 @@ exports.deleteEvent = async (req, res) => {
     }
 };
 
-// @desc    Register for an event (FCFS)
+// @desc    Register for an event slot (FCFS)
 // @route   POST /api/register
 // @access  Private
 exports.register = async (req, res) => {
-    const { eventCode, email } = req.body; // Using eventCode as variable name (but actually sending eventId likely)
-    const eventId = req.body.eventId || eventCode; // Support both
+    const { eventId, slotId } = req.body;
+    const userId = req.user._id;
 
-    // Basic validation
-    if (!eventId) {
-        return res.status(400).json({ message: 'Event ID is required' });
+    if (!eventId || !slotId) {
+        return res.status(400).json({ message: 'Event ID and Slot ID are required' });
     }
 
     try {
-        // Atomic Check and Update for FCFS
-        // Find event that has slots < limit AND is active
-        const updatedEvent = await Event.findOneAndUpdate(
-            {
-                _id: eventId,
-                $expr: { $lt: ["$bookedSlots", "$totalSlots"] },
-                isActive: true
-            },
-            { $inc: { bookedSlots: 1 } },
-            { new: true } // Return updated document
-        );
-
-        if (!updatedEvent) {
-            // This means either event not found, or slots full
-            // Check if event exists to give better error message
-            const eventExists = await Event.findById(eventId);
-            if (!eventExists) return res.status(404).json({ message: 'Event not found' });
-            if (!eventExists.isActive) return res.status(400).json({ message: 'Event is inactive' });
-            return res.status(400).json({ message: 'Slots are full. Registration closed.' });
+        // 1. Fetch Event and Check Eligibility
+        const event = await Event.findById(eventId);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+        if (!event.isActive) {
+            return res.status(400).json({ message: 'Event is inactive' });
         }
 
-        // Grant registration
+        // Eligibility check
+        if (event.targetAudience !== 'Common' && event.targetAudience !== req.user.studentType) {
+            return res.status(403).json({ message: `This event is only for ${event.targetAudience}s.` });
+        }
+
+        // 2. Check for functionality: "One slot per event"
+        const existingRegistration = await Registration.findOne({ user: userId, event: eventId });
+        if (existingRegistration) {
+            return res.status(400).json({ message: 'You have already booked a slot for this event.' });
+        }
+
+        // 3. Find target slot details (for capacity check)
+        const targetSlot = event.slots.id(slotId);
+        if (!targetSlot) {
+            return res.status(404).json({ message: 'Slot not found' });
+        }
+
+        if (targetSlot.bookedSlots >= targetSlot.totalSlots) {
+            return res.status(400).json({ message: 'Slot full. Registration closed.' });
+        }
+
+        // 4. Atomic Update (Concurrency Safe)
+        const updateResult = await Event.updateOne(
+            {
+                _id: eventId,
+                'slots._id': slotId,
+                'slots.bookedSlots': { $lt: targetSlot.totalSlots }
+            },
+            { $inc: { 'slots.$.bookedSlots': 1 } }
+        );
+
+        if (updateResult.modifiedCount === 0) {
+            return res.status(400).json({ message: 'Slot full. Registration closed.' });
+        }
+
+        // 5. Create Registration Record
         try {
             const registration = await Registration.create({
-                user: req.user._id,
-                event: eventId
+                user: userId,
+                event: eventId,
+                slotId: slotId
             });
 
             res.status(201).json({
@@ -126,42 +168,36 @@ exports.register = async (req, res) => {
                 registration
             });
 
-            // Trigger Notification Emails
-            console.log('--- Triggering Email Service ---');
+            // Trigger Notification Email (Async)
             try {
-                const user = await User.findById(req.user._id);
-                const event = await Event.findById(eventId);
-
-                console.log(`User Email found: ${user.email}`);
-                console.log(`Event Title found: ${event.title}`);
+                // Fetch updated event to get current slot time
+                // Or just use targetSlot.startTime
 
                 await emailService.sendBookingConfirmation(
-                    user.email,
-                    user.name,
+                    req.user.email,
+                    req.user.name,
                     event.title,
-                    event.testDate
+                    targetSlot.startTime // Send slot time
                 );
 
-                if (updatedEvent.bookedSlots === updatedEvent.totalSlots) {
-                    const adminUser = await User.findOne({ isAdmin: true });
-                    if (adminUser) {
-                        await emailService.notifyAdminEventFull(
-                            adminUser.email,
-                            event.title,
-                            event.totalSlots
-                        );
-                    }
+                // Check if FULL (optional: notify admin)
+                if (targetSlot.bookedSlots + 1 === targetSlot.totalSlots) {
+                    // Notify admin logic can go here
                 }
+
             } catch (emailErr) {
-                console.error('Post-registration email background task failed:', emailErr);
+                console.error('Email notification failed:', emailErr);
             }
 
         } catch (regError) {
-            // Rollback slot if registration creation fails (e.g. duplicate user)
-            await Event.findByIdAndUpdate(eventId, { $inc: { bookedSlots: -1 } });
+            // Rollback slot count if registration insert fails
+            await Event.updateOne(
+                { _id: eventId, 'slots._id': slotId },
+                { $inc: { 'slots.$.bookedSlots': -1 } }
+            );
 
             if (regError.code === 11000) {
-                return res.status(400).json({ message: 'User already registered for this event.' });
+                return res.status(400).json({ message: 'You have already booked a slot for this event.' });
             }
             throw regError;
         }
@@ -280,6 +316,9 @@ exports.getMyRegistrations = async (req, res) => {
 // @desc    Cancel a registration
 // @route   DELETE /api/registrations/:id
 // @access  Private
+// @desc    Cancel a registration
+// @route   DELETE /api/registrations/:id
+// @access  Private
 exports.cancelRegistration = async (req, res) => {
     try {
         const registration = await Registration.findById(req.params.id);
@@ -294,10 +333,16 @@ exports.cancelRegistration = async (req, res) => {
         }
 
         const eventId = registration.event;
+        const slotId = registration.slotId; // NOW AVAILABLE
 
         // Atomic update: remove registration and decrement slot
         await registration.deleteOne();
-        await Event.findByIdAndUpdate(eventId, { $inc: { bookedSlots: -1 } });
+
+        // Decrement slot booked count
+        await Event.updateOne(
+            { _id: eventId, 'slots._id': slotId },
+            { $inc: { 'slots.$.bookedSlots': -1 } }
+        );
 
         res.json({ message: 'Registration cancelled successfully' });
     } catch (error) {

@@ -28,9 +28,9 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const register = async (name, email, password) => {
+    const register = async (userData) => {
         try {
-            const { data } = await axios.post('/api/auth/register', { name, email, password });
+            const { data } = await axios.post('/api/auth/register', userData);
             // Don't auto-login here since email needs verification
             return { success: true, message: data.message };
         } catch (error) {

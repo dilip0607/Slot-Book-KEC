@@ -3,33 +3,49 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [role, setRole] = useState('USER');
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        rollNumber: '',
+        department: '',
+        section: '',
+        year: '',
+        mobile: '',
+        studentType: '',
+        gender: ''
+    });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const { register } = useAuth();
     const navigate = useNavigate();
 
+    const { name, email, password, rollNumber, department, section, year, mobile, studentType, gender } = formData;
+
+    const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        // In a real app, role selection might be restricted or secret. 
-        // For this demo, we allow selecting role to easily test Admin features. (As implied by ease of testing logic)
-        // Or maybe we force USER and have a secret admin setup. 
-        // User request says "Admin Login" and "User Login". 
-        // I'll allow creating an Admin for testing purposes if the user wants, or just default to USER.
-        // Actually, the requirements say "Secure, role-based admin authentication".
-        // I'll add a checkbox/dropdown for Role, but keep it simple.
 
-        // I'll stick to USER only for public registration. Admin is `admin@test.com`.
+        // Basic Client Side Validation
+        if (!email.endsWith('@kongu.edu')) {
+            setError('Please use your @kongu.edu email');
+            return;
+        }
 
-        const res = await register(name, email, password);
+        if (studentType === 'Hosteller' && !gender) {
+            setError('Gender is required for Hostellers');
+            return;
+        }
+
+        const res = await register(formData);
 
         if (res.success) {
             setSuccess(res.message || 'Registration successful! Please check your email to verify your account.');
             setError('');
-            // Don't navigate, show the success message
+            setFormData({
+                name: '', email: '', password: '', rollNumber: '', department: '', section: '', year: '', mobile: '', studentType: '', gender: ''
+            });
         } else {
             setError(res.message);
             setSuccess('');
@@ -37,92 +53,110 @@ const Register = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8 card">
+        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+            <div className="max-w-2xl w-full space-y-8 bg-white p-8 rounded-xl shadow-lg">
                 <div className="text-center">
                     <h2 className="mt-2 text-3xl font-extrabold text-gray-900 tracking-tight">
-                        Create Account
+                        Student Registration
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
-                        Join us to book your slots instantly
+                        Fill in all details correctly to access your dashboard.
                     </p>
                 </div>
                 {error && (
                     <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md">
-                        <div className="flex">
-                            <div className="flex-shrink-0">
-                                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                            <div className="ml-3">
-                                <p className="text-sm text-red-700">{error}</p>
-                            </div>
-                        </div>
+                        <p className="text-sm text-red-700">{error}</p>
                     </div>
                 )}
                 {success && (
                     <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-md">
-                        <div className="flex">
-                            <div className="flex-shrink-0">
-                                <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 12.586l7.293-7.293a1 1 0 011.414 1.414l-8 8z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                            <div className="ml-3">
-                                <p className="text-sm text-green-700">{success}</p>
-                                <button
-                                    onClick={() => navigate('/login')}
-                                    className="mt-2 text-sm font-medium text-green-800 hover:text-green-900 underline"
-                                >
-                                    Go to login
-                                </button>
-                            </div>
-                        </div>
+                        <p className="text-sm text-green-700">{success}</p>
+                        <button onClick={() => navigate('/login')} className="mt-2 text-sm font-medium text-green-800 underline">
+                            Go to login
+                        </button>
                     </div>
                 )}
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <div className="space-y-4">
-                        <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                            <input
-                                id="name"
-                                type="text"
-                                required
-                                className="input-field"
-                                placeholder="John Doe"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                            />
+                    <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                        {/* Name */}
+                        <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                            <input name="name" type="text" required className="input-field mt-1" value={name} onChange={onChange} />
                         </div>
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email address</label>
-                            <input
-                                id="email"
-                                type="email"
-                                required
-                                className="input-field"
-                                placeholder="you@example.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
+
+                        {/* Email */}
+                        <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-sm font-medium text-gray-700">Email (@kongu.edu)</label>
+                            <input name="email" type="email" required className="input-field mt-1" value={email} onChange={onChange} />
                         </div>
+
+                        {/* Roll Number */}
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                            <input
-                                id="password"
-                                type="password"
-                                required
-                                className="input-field"
-                                placeholder="Min. 8 characters"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
+                            <label className="block text-sm font-medium text-gray-700">Roll Number</label>
+                            <input name="rollNumber" type="text" required className="input-field mt-1" value={rollNumber} onChange={onChange} />
                         </div>
+
+                        {/* Password */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Password</label>
+                            <input name="password" type="password" required className="input-field mt-1" value={password} onChange={onChange} />
+                        </div>
+
+                        {/* Mobile */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
+                            <input name="mobile" type="text" pattern="\d{10}" title="10 digit mobile number" required className="input-field mt-1" value={mobile} onChange={onChange} />
+                        </div>
+
+                        {/* Year */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Year</label>
+                            <select name="year" required className="input-field mt-1" value={year} onChange={onChange}>
+                                <option value="">Select Year</option>
+                                <option value="1">1st Year</option>
+                                <option value="2">2nd Year</option>
+                                <option value="3">3rd Year</option>
+                                <option value="4">4th Year</option>
+                            </select>
+                        </div>
+
+                        {/* Department */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Department</label>
+                            <input name="department" type="text" placeholder="e.g. CSE" required className="input-field mt-1" value={department} onChange={onChange} />
+                        </div>
+
+                        {/* Section */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Section (Optional)</label>
+                            <input name="section" type="text" className="input-field mt-1" value={section} onChange={onChange} />
+                        </div>
+
+                        {/* Student Type */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Student Type</label>
+                            <select name="studentType" required className="input-field mt-1" value={studentType} onChange={onChange}>
+                                <option value="">Select Type</option>
+                                <option value="Day Scholar">Day Scholar</option>
+                                <option value="Hosteller">Hosteller</option>
+                            </select>
+                        </div>
+
+                        {/* Gender (Conditional) */}
+                        {studentType === 'Hosteller' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Gender</label>
+                                <select name="gender" required className="input-field mt-1" value={gender} onChange={onChange}>
+                                    <option value="">Select Gender</option>
+                                    <option value="Male">Boy</option>
+                                    <option value="Female">Girl</option>
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     <div>
-                        <button type="submit" className="w-full btn-primary flex justify-center py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                        <button type="submit" className="w-full btn-primary flex justify-center py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all">
                             Create Account
                         </button>
                     </div>

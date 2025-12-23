@@ -11,13 +11,48 @@ const generateToken = (id) => {
 };
 
 exports.register = async (req, res) => {
-    const { name, email, password, role } = req.body;
+    const {
+        name,
+        email,
+        password,
+        role,
+        rollNumber,
+        department,
+        section,
+        year,
+        mobile,
+        studentType,
+        gender
+    } = req.body;
 
     try {
-        const userExists = await User.findOne({ email });
+        // Validation: Email Domain
+        if (!email.endsWith('@kongu.edu') && role !== 'ADMIN') { // Allow admin to bypass in dev if needed, or strictly enforce
+            // For strict enforcement as per requirements:
+            // if (!email.endsWith('@kongu.edu'))
+            if (!email.endsWith('@kongu.edu')) {
+                return res.status(400).json({ message: 'Only @kongu.edu email addresses are allowed.' });
+            }
+        }
 
+        // Validation: Mobile Number
+        if (!/^\d{10}$/.test(mobile)) {
+            return res.status(400).json({ message: 'Mobile number must be exactly 10 digits.' });
+        }
+
+        // Validation: Hosteller Gender
+        if (studentType === 'Hosteller' && !gender) {
+            return res.status(400).json({ message: 'Gender is required for Hostellers.' });
+        }
+
+        const userExists = await User.findOne({ email });
         if (userExists) {
             return res.status(400).json({ message: 'User already exists' });
+        }
+
+        const rollNumberExists = await User.findOne({ rollNumber });
+        if (rollNumberExists) {
+            return res.status(400).json({ message: 'Roll Number already exists' });
         }
 
         const verificationToken = crypto.randomBytes(32).toString('hex');
@@ -28,6 +63,13 @@ exports.register = async (req, res) => {
             email,
             password,
             role: role || 'USER',
+            rollNumber,
+            department,
+            section,
+            year,
+            mobile,
+            studentType,
+            gender: studentType === 'Hosteller' ? gender : undefined,
             verificationToken,
             verificationTokenExpire
         });
@@ -42,6 +84,11 @@ exports.register = async (req, res) => {
             res.status(400).json({ message: 'Invalid user data' });
         }
     } catch (error) {
+        if (error.code === 11000) {
+            // Handle duplicate key error generically if missed above
+            if (error.keyPattern.rollNumber) return res.status(400).json({ message: 'Roll Number already exists' });
+            if (error.keyPattern.email) return res.status(400).json({ message: 'Email already exists' });
+        }
         res.status(500).json({ message: error.message });
     }
 };
@@ -62,6 +109,7 @@ exports.login = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                studentType: user.studentType,
                 token: generateToken(user._id)
             });
         } else {

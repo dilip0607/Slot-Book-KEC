@@ -11,6 +11,10 @@ const registrationSchema = new mongoose.Schema({
         ref: 'Event',
         required: true
     },
+    slotId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true
+    },
     registeredAt: {
         type: Date,
         default: Date.now
