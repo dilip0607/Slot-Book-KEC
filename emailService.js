@@ -78,7 +78,10 @@ const notifyAdminEventFull = async (adminEmail, eventTitle, totalSlots) => {
  * Send email verification link to user
  */
 const sendVerificationEmail = async (userEmail, userName, verificationToken) => {
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+    let baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+    // Remove trailing slash if present to avoid double slashes
+    baseUrl = baseUrl.replace(/\/$/, '');
+
     const verificationUrl = `${baseUrl}/api/auth/verify/${verificationToken}`;
 
     const htmlContent = `

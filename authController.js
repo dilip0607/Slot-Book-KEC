@@ -96,12 +96,10 @@ exports.verifyEmail = async (req, res) => {
         user.verificationTokenExpire = undefined;
         await user.save();
 
-        res.send(`
-            <div style="font-family: Arial; text-align: center; margin-top: 50px;">
-                <h1 style="color: #4f46e5;">Email Verified Successfully!</h1>
-                <p>You can now close this window and log in to the application.</p>
-            </div>
-        `);
+        let baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+        baseUrl = baseUrl.replace(/\/$/, '');
+
+        res.redirect(`${baseUrl}/login?verified=true`);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
