@@ -31,9 +31,8 @@ export const AuthProvider = ({ children }) => {
     const register = async (name, email, password) => {
         try {
             const { data } = await axios.post('/api/auth/register', { name, email, password });
-            setUser(data);
-            localStorage.setItem('userInfo', JSON.stringify(data));
-            return { success: true };
+            // Don't auto-login here since email needs verification
+            return { success: true, message: data.message };
         } catch (error) {
             return { success: false, message: error.response?.data?.message || 'Registration failed' };
         }

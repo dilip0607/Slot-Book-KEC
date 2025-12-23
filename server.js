@@ -22,6 +22,7 @@ app.use(bodyParser.json());
 // API Routes
 app.post('/api/auth/register', authController.register);
 app.post('/api/auth/login', authController.login);
+app.get('/api/auth/verify/:token', authController.verifyEmail);
 
 // Public/User Routes
 app.get('/api/events', protect, controllers.getAllEvents);

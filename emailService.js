@@ -17,9 +17,11 @@ const transporter = nodemailer.createTransport({
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+    pool: true, // Use a pool for multiple messages
+    maxConnections: 1, // Minimize concurrent connections on free tier
+    connectionTimeout: 30000, // 30 seconds
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
 });
 
 /**
@@ -86,7 +88,44 @@ const notifyAdminEventFull = async (adminEmail, eventTitle, totalSlots) => {
     }
 };
 
+/**
+ * Send email verification link to user
+ */
+const sendVerificationEmail = async (userEmail, userName, verificationToken) => {
+    try {
+        const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+        const verificationUrl = `${baseUrl}/api/auth/verify/${verificationToken}`;
+
+        const mailOptions = {
+            from: `"KEC Slot Booking" <${process.env.EMAIL_USER}>`,
+            to: userEmail,
+            subject: 'Verify Your Email - KEC Slot Booking',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                    <h2 style="color: #4f46e5; text-align: center;">Welcome to KEC Slot Booking</h2>
+                    <p>Hello <strong>${userName}</strong>,</p>
+                    <p>Thank you for registering. Please verify your email by clicking the button below:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${verificationUrl}" style="background-color: #4f46e5; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email</a>
+                    </div>
+                    <p>Or copy and paste this link in your browser:</p>
+                    <p style="word-break: break-all; color: #6b7280; font-size: 14px;">${verificationUrl}</p>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                    <p style="font-size: 12px; color: #6b7280; text-align: center;">This link will expire in 24 hours.</p>
+                </div>
+            `,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Verification email sent successfully!');
+        return info;
+    } catch (error) {
+        console.error('Error sending verification email:', error);
+    }
+};
+
 module.exports = {
     sendBookingConfirmation,
-    notifyAdminEventFull
+    notifyAdminEventFull,
+    sendVerificationEmail
 };
