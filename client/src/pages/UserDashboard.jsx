@@ -117,10 +117,10 @@ const UserDashboard = () => {
                                 <div key={reg._id} className="bg-white border-2 border-indigo-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
                                     <h3 className="text-lg font-bold text-gray-900 mb-2">{reg.event?.title || 'Unknown Event'}</h3>
                                     <p className="text-sm text-gray-500 mb-1">
-                                        <span className="font-semibold">Slot Time:</span> {slot ? new Date(slot.startTime).toLocaleString() : 'N/A'}
+                                        <span className="font-semibold">Slot Time:</span> {slot ? new Date(slot.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}
                                     </p>
                                     <p className="text-xs text-gray-400 mb-4">
-                                        Registered on: {new Date(reg.registeredAt).toLocaleDateString()}
+                                        Registered on: {new Date(reg.registeredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
                                     </p>
                                     <button
                                         onClick={() => handleCancel(reg._id)}
@@ -158,7 +158,8 @@ const UserDashboard = () => {
                                         <div key={slot._id} className={`border rounded-lg p-4 relative ${isFull ? 'bg-gray-50 border-gray-200' : 'bg-white border-indigo-100 hover:border-indigo-300'}`}>
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="text-sm font-medium text-gray-900">
-                                                    {new Date(slot.startTime).toLocaleString(undefined, {
+                                                    {new Date(slot.startTime).toLocaleString('en-IN', {
+                                                        timeZone: 'Asia/Kolkata',
                                                         weekday: 'short', month: 'short', day: 'numeric',
                                                         hour: '2-digit', minute: '2-digit'
                                                     })}
@@ -184,8 +185,8 @@ const UserDashboard = () => {
                                                 onClick={() => handleRegister(event._id, slot._id)}
                                                 disabled={isFull}
                                                 className={`w-full py-2 text-sm font-semibold rounded transition-colors ${isFull
-                                                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                                                        : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                                                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                                                    : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
                                                     }`}
                                             >
                                                 {isFull ? 'Unavailable' : 'Book Slot'}

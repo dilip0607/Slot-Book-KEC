@@ -77,41 +77,41 @@ const Register = () => {
                     </div>
                 )}
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         {/* Name */}
-                        <div className="col-span-2 sm:col-span-1">
-                            <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                            <input name="name" type="text" required className="input-field mt-1" value={name} onChange={onChange} />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                            <input name="name" type="text" required className="input-field" value={name} onChange={onChange} />
                         </div>
 
                         {/* Email */}
-                        <div className="col-span-2 sm:col-span-1">
-                            <label className="block text-sm font-medium text-gray-700">Email (@kongu.edu)</label>
-                            <input name="email" type="email" required className="input-field mt-1" value={email} onChange={onChange} />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Email (@kongu.edu)</label>
+                            <input name="email" type="email" required className="input-field" value={email} onChange={onChange} />
                         </div>
 
                         {/* Roll Number */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Roll Number</label>
-                            <input name="rollNumber" type="text" required className="input-field mt-1" value={rollNumber} onChange={onChange} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
+                            <input name="rollNumber" type="text" required className="input-field" value={rollNumber} onChange={onChange} />
                         </div>
 
                         {/* Password */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Password</label>
-                            <input name="password" type="password" required className="input-field mt-1" value={password} onChange={onChange} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <input name="password" type="password" required className="input-field" value={password} onChange={onChange} />
                         </div>
 
                         {/* Mobile */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
-                            <input name="mobile" type="text" pattern="\d{10}" title="10 digit mobile number" required className="input-field mt-1" value={mobile} onChange={onChange} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                            <input name="mobile" type="text" pattern="\d{10}" title="10 digit mobile number" required className="input-field" value={mobile} onChange={onChange} />
                         </div>
 
                         {/* Year */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Year</label>
-                            <select name="year" required className="input-field mt-1" value={year} onChange={onChange}>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                            <select name="year" required className="input-field" value={year} onChange={onChange}>
                                 <option value="">Select Year</option>
                                 <option value="1">1st Year</option>
                                 <option value="2">2nd Year</option>
@@ -122,20 +122,20 @@ const Register = () => {
 
                         {/* Department */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Department</label>
-                            <input name="department" type="text" placeholder="e.g. CSE" required className="input-field mt-1" value={department} onChange={onChange} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                            <input name="department" type="text" placeholder="e.g. CSE" required className="input-field" value={department} onChange={onChange} />
                         </div>
 
                         {/* Section */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Section (Optional)</label>
-                            <input name="section" type="text" className="input-field mt-1" value={section} onChange={onChange} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Section (Optional)</label>
+                            <input name="section" type="text" className="input-field" value={section} onChange={onChange} />
                         </div>
 
                         {/* Student Type */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Student Type</label>
-                            <select name="studentType" required className="input-field mt-1" value={studentType} onChange={onChange}>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Student Type</label>
+                            <select name="studentType" required className="input-field" value={studentType} onChange={onChange}>
                                 <option value="">Select Type</option>
                                 <option value="Day Scholar">Day Scholar</option>
                                 <option value="Hosteller">Hosteller</option>
@@ -145,8 +145,8 @@ const Register = () => {
                         {/* Gender (Conditional) */}
                         {studentType === 'Hosteller' && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Gender</label>
-                                <select name="gender" required className="input-field mt-1" value={gender} onChange={onChange}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                                <select name="gender" required className="input-field" value={gender} onChange={onChange}>
                                     <option value="">Select Gender</option>
                                     <option value="Male">Boy</option>
                                     <option value="Female">Girl</option>

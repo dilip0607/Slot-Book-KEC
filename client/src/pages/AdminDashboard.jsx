@@ -304,7 +304,7 @@ const AdminDashboard = () => {
                                                                         <div>
                                                                             <p className="text-sm font-medium text-gray-900">{reg.user.name}</p>
                                                                             <p className="text-xs text-gray-500">{reg.user.email} <span className='text-gray-400'>|</span> {reg.user.studentType}</p>
-                                                                            <p className="text-xs text-indigo-500 mt-1">Slot: {s ? new Date(s.startTime).toLocaleString() : 'N/A'}</p>
+                                                                            <p className="text-xs text-indigo-500 mt-1">Slot: {s ? new Date(s.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}</p>
                                                                         </div>
                                                                     </div>
                                                                 );

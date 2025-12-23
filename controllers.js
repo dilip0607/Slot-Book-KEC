@@ -229,8 +229,8 @@ exports.getEventRegistrations = async (req, res) => {
 exports.exportEventRegistrations = async (req, res) => {
     try {
         const registrations = await Registration.find({ event: req.params.id })
-            .populate('user', 'name email')
-            .populate('event', 'title')
+            .populate('user') // Get all user fields since we need many of them
+            .populate('event', 'title slots') // Need title AND slots
             .sort({ registeredAt: 1 });
 
         if (registrations.length === 0) {
@@ -240,7 +240,10 @@ exports.exportEventRegistrations = async (req, res) => {
         const data = registrations.map(reg => {
             const user = reg.user;
             const event = reg.event;
-            const slot = event.slots.find(s => s._id.toString() === reg.slotId.toString());
+
+            if (!user || !event) return null; // Skip if data is corrupted
+
+            const slot = event.slots ? event.slots.find(s => s._id.toString() === reg.slotId.toString()) : null;
 
             return {
                 'Event Title': event.title,
@@ -256,7 +259,7 @@ exports.exportEventRegistrations = async (req, res) => {
                 'User Email': user.email,
                 'Registration Date': new Date(reg.registeredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
             };
-        });
+        }).filter(item => item !== null); // Filter out corrupted entries
 
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(data);

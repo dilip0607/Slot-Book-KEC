@@ -49,7 +49,7 @@ const sendBookingConfirmation = async (userEmail, userName, eventTitle, eventDat
             <p>Your slot for <strong>${eventTitle}</strong> has been successfully booked.</p>
             <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
                 <p style="margin: 0;"><strong>Event:</strong> ${eventTitle}</p>
-                <p style="margin: 0;"><strong>Date:</strong> ${new Date(eventDate).toLocaleDateString()}</p>
+                <p style="margin: 0;"><strong>Date:</strong> ${new Date(eventDate).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
             </div>
             <p>Please be on time and bring your identification.</p>
             <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
