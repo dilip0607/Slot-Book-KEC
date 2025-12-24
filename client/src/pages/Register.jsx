@@ -38,6 +38,12 @@ const Register = () => {
             return;
         }
 
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{6,10}$/;
+        if (!passwordRegex.test(password)) {
+            setError('Password must be 6-10 characters long, contain 1 uppercase, 1 lowercase, and 1 special character.');
+            return;
+        }
+
         const res = await register(formData);
 
         if (res.success) {
@@ -96,11 +102,7 @@ const Register = () => {
                             <input name="rollNumber" type="text" required className="input-field" value={rollNumber} onChange={onChange} />
                         </div>
 
-                        {/* Password */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                            <input name="password" type="password" required className="input-field" value={password} onChange={onChange} />
-                        </div>
+
 
                         {/* Mobile */}
                         <div>
@@ -153,6 +155,22 @@ const Register = () => {
                                 </select>
                             </div>
                         )}
+                        {/* Password - Moved to bottom */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <input
+                                name="password"
+                                type="password"
+                                required
+                                className="input-field"
+                                value={password}
+                                onChange={onChange}
+                                placeholder="6-10 chars, 1 Upper, 1 Lower, 1 Special"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Must be 6-10 chars, 1 Uppercase, 1 Lowercase, 1 Special char.
+                            </p>
+                        </div>
                     </div>
 
                     <div>

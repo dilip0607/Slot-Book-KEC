@@ -45,6 +45,14 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: 'Gender is required for Hostellers.' });
         }
 
+        // Validation: Password Security
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{6,10}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({
+                message: 'Password must be 6-10 characters long, contain at least one uppercase letter, one lowercase letter, and one special character.'
+            });
+        }
+
         const userExists = await User.findOne({ email });
         if (userExists) {
             return res.status(400).json({ message: 'User already exists' });
