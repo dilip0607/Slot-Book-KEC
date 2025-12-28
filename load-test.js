@@ -28,11 +28,14 @@ const runLoadTest = async () => {
     try {
         // 1. Cleanup previous test data
         console.log('Cleaning up old test data...');
-        const testEventTitle = 'LOAD TEST EVENT ' + Date.now();
+        // Delete any events from previous runs
+        await Event.deleteMany({ title: { $regex: 'LOAD TEST EVENT' } });
+        // Delete any dummy users from previous runs
         await User.deleteMany({ email: { $regex: 'testuser_' } });
 
         // 2. Create Test Event
         console.log('Creating Test Event...');
+        const testEventTitle = 'LOAD TEST EVENT ' + Date.now();
         const event = await Event.create({
             title: testEventTitle,
             targetAudience: 'Common',
@@ -121,6 +124,13 @@ const runLoadTest = async () => {
             console.log('❌ TEST FAILED: Overbooking or inconsistency detected.');
             console.log(`Expected ${SLOTS_CAPACITY}, got Success: ${successCount}, DB: ${dbRegistrations}`);
         }
+
+        // 7. Cleanup Created Data
+        console.log('Cleaning up test data...');
+        await User.deleteMany({ email: { $regex: 'testuser_' } });
+        await Registration.deleteMany({ event: eventId });
+        await Event.findByIdAndDelete(eventId);
+        console.log('Test data deleted successfully.');
 
     } catch (err) {
         console.error('Test Scirpt Error:', err);
