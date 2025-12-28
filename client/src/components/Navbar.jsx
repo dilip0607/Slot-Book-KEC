@@ -18,7 +18,7 @@ const Navbar = () => {
                     <div className="flex">
                         <div className="flex-shrink-0 flex items-center">
                             <Link to="/" className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tight">
-                                FCFS<span className="font-light text-gray-500">Booking</span>
+                                SLOT<span className="font-light text-gray-500">Booking</span>
                             </Link>
                         </div>
                     </div>

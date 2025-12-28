@@ -149,8 +149,8 @@ const Register = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                                 <select name="gender" required className="input-field" value={gender} onChange={onChange}>
                                     <option value="">Select Gender</option>
-                                    <option value="Male">Boy</option>
-                                    <option value="Female">Girl</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
                                 </select>
                             </div>
                         )}
