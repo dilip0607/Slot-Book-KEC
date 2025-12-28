@@ -25,9 +25,17 @@ app.post('/api/auth/login', authController.login);
 app.get('/api/auth/verify/:token', authController.verifyEmail);
 
 // Public/User Routes
+// Rate limiting
+const rateLimit = require('express-rate-limit');
+const registrationLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 1000, // limit each IP to 10 requests per windowMs
+    message: { message: 'Too many registration attempts, please try again later.' }
+});
+
 app.get('/api/events', protect, controllers.getAllEvents);
 app.get('/api/events/:id', protect, controllers.getEventStatus);
-app.post('/api/register', protect, controllers.register);
+app.post('/api/register', protect, registrationLimiter, controllers.register);
 
 app.get('/api/my-registrations', protect, controllers.getMyRegistrations);
 app.delete('/api/registrations/:id', protect, controllers.cancelRegistration);
