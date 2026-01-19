@@ -39,8 +39,10 @@ const Register = () => {
             return;
         }
 
-        if (studentType === 'Hosteller' && !gender) {
-            setError('Gender is required for Hostellers');
+
+        // Validation: Mandatory Fields
+        if (!gender || !department || !section || !year) {
+            setError('All fields are mandatory');
             return;
         }
 
@@ -125,13 +127,38 @@ const Register = () => {
                         {/* Department */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                            <input name="department" type="text" placeholder="e.g. CSE" required className="input-field" value={department} onChange={onChange} />
+                            <select name="department" required className="input-field" value={department} onChange={onChange}>
+                                <option value="">Select Department</option>
+                                <option value="CSE">CSE</option>
+                                <option value="IT">IT</option>
+                                <option value="CSD">CSD</option>
+                                <option value="ECE">ECE</option>
+                                <option value="EEE">EEE</option>
+                                <option value="EIE">EIE</option>
+                                <option value="MECH">MECH</option>
+                                <option value="AUTO">AUTO</option>
+                                <option value="CIVIL">CIVIL</option>
+                                <option value="MTS">MTS</option>
+                                <option value="CHEM">CHEM</option>
+                                <option value="FT">FT</option>
+                                <option value="BSC">BSC</option>
+                                <option value="MBA">MBA</option>
+                                <option value="MCA">MCA</option>
+                            </select>
                         </div>
 
                         {/* Section */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Section (Optional)</label>
-                            <input name="section" type="text" className="input-field" value={section} onChange={onChange} />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
+                            <select name="section" required className="input-field" value={section} onChange={onChange}>
+                                <option value="">Select Section</option>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                                <option value="E">E</option>
+                                <option value="F">F</option>
+                            </select>
                         </div>
 
                         {/* Year */}
@@ -143,6 +170,7 @@ const Register = () => {
                                 <option value="2">2nd Year</option>
                                 <option value="3">3rd Year</option>
                                 <option value="4">4th Year</option>
+                                <option value="5">5th Year</option>
                             </select>
                         </div>
 
@@ -156,17 +184,15 @@ const Register = () => {
                             </select>
                         </div>
 
-                        {/* Gender (Conditional) */}
-                        {studentType === 'Hosteller' && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                                <select name="gender" required className="input-field" value={gender} onChange={onChange}>
-                                    <option value="">Select Gender</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                </select>
-                            </div>
-                        )}
+                        {/* Gender (Mandatory for All) */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                            <select name="gender" required className="input-field" value={gender} onChange={onChange}>
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
 
                         {/* Password - Moved to bottom */}
                         <div className={studentType === 'Hosteller' ? "" : ""} > {/* Auto flow in grid */}

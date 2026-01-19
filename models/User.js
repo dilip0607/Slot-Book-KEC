@@ -26,14 +26,17 @@ const userSchema = new mongoose.Schema({
         sparse: true // Allows null/undefined for existing admins, but we'll enforce for new users
     },
     department: {
-        type: String
+        type: String,
+        required: [true, 'Department is required']
     },
     section: {
-        type: String
+        type: String,
+        required: [true, 'Section is required']
     },
     year: {
         type: String,
-        enum: ['1', '2', '3', '4']
+        enum: ['1', '2', '3', '4', '5'],
+        required: [true, 'Year is required']
     },
     mobile: {
         type: String
@@ -44,8 +47,8 @@ const userSchema = new mongoose.Schema({
     },
     gender: {
         type: String,
-        enum: ['Male', 'Female']
-        // Required only if Hosteller, handled in controller validation
+        enum: ['Male', 'Female'],
+        required: [true, 'Gender is required']
     },
     createdAt: {
         type: Date,

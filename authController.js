@@ -40,9 +40,32 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: 'Mobile number must be exactly 10 digits.' });
         }
 
-        // Validation: Hosteller Gender
-        if (studentType === 'Hosteller' && !gender) {
-            return res.status(400).json({ message: 'Gender is required for Hostellers.' });
+
+        // Validation: Mandatory Fields
+        if (!gender || !department || !section || !year) {
+            return res.status(400).json({ message: 'All fields are mandatory' });
+        }
+
+        // Validation: Gender
+        if (!['Male', 'Female'].includes(gender)) {
+            return res.status(400).json({ message: 'Invalid gender selection' });
+        }
+
+        // Validation: Year
+        if (!['1', '2', '3', '4', '5'].includes(year)) {
+            return res.status(400).json({ message: 'Invalid year selection' });
+        }
+
+        // Validation: Department (Optional stricter check if needed, but schema handles type mostly)
+        const allowedDepts = ['AUTO', 'CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'MTS'];
+        if (!allowedDepts.includes(department)) {
+            return res.status(400).json({ message: 'Invalid department selection' });
+        }
+
+        // Validation: Section
+        const allowedSections = ['A', 'B', 'C', 'D', 'E', 'F'];
+        if (!allowedSections.includes(section)) {
+            return res.status(400).json({ message: 'Invalid section selection' });
         }
 
         // Validation: Password Security
@@ -77,7 +100,7 @@ exports.register = async (req, res) => {
             year,
             mobile,
             studentType,
-            gender: studentType === 'Hosteller' ? gender : undefined,
+            gender,
             verificationToken,
             verificationTokenExpire
         });

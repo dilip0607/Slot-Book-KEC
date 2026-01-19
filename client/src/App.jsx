@@ -7,27 +7,31 @@ import Register from './pages/Register';
 import AdminDashboard from './pages/AdminDashboard';
 import UserDashboard from './pages/UserDashboard';
 import PrivateRoute from './components/PrivateRoute';
+import Footer from './components/Footer';
 
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
           <Navbar />
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+          <div className="flex-grow">
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
-            {/* Protected User Routes */}
-            <Route element={<PrivateRoute />}>
-              <Route path="/" element={<UserDashboard />} />
-            </Route>
+              {/* Protected User Routes */}
+              <Route element={<PrivateRoute />}>
+                <Route path="/" element={<UserDashboard />} />
+              </Route>
 
-            {/* Protected Admin Routes */}
-            <Route element={<PrivateRoute adminOnly={true} />}>
-              <Route path="/admin" element={<AdminDashboard />} />
-            </Route>
-          </Routes>
+              {/* Protected Admin Routes */}
+              <Route element={<PrivateRoute adminOnly={true} />}>
+                <Route path="/admin" element={<AdminDashboard />} />
+              </Route>
+            </Routes>
+          </div>
+          <Footer />
         </div>
       </AuthProvider>
     </Router>
