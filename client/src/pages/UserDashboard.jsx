@@ -77,7 +77,7 @@ const UserDashboard = () => {
         <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
                 <div>
-                    <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-purple-600 mb-2">User Dashboard</h1>
+                    <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-700 to-sky-600 mb-2">User Dashboard</h1>
                     <p className="text-gray-500">Welcome, {user?.name} ({user?.studentType})</p>
                 </div>
                 <div className="relative">
@@ -86,7 +86,7 @@ const UserDashboard = () => {
                         placeholder="Search events..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none w-full md:w-64"
+                        className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none w-full md:w-64"
                     />
                     <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </div>
@@ -102,7 +102,7 @@ const UserDashboard = () => {
             {myRegistrations.length > 0 && (
                 <div className="mb-12">
                     <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                        <svg className="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                        <svg className="w-6 h-6 mr-2 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
                         My Registered Slots
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -114,7 +114,7 @@ const UserDashboard = () => {
                             const slot = reg.event ? reg.event.slots.find(s => s._id === reg.slotId) : null;
 
                             return (
-                                <div key={reg._id} className="bg-white border-2 border-indigo-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                                <div key={reg._id} className="bg-white border-2 border-sky-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
                                     <h3 className="text-lg font-bold text-gray-900 mb-2">{reg.event?.title || 'Unknown Event'}</h3>
                                     <p className="text-sm text-gray-500 mb-1">
                                         <span className="font-semibold">Slot Time:</span> {slot ? new Date(slot.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}
@@ -139,10 +139,10 @@ const UserDashboard = () => {
             <div className="grid grid-cols-1 gap-8">
                 {filteredEvents.map((event) => (
                     <div key={event._id} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300">
-                        <div className="bg-indigo-600 p-4">
+                        <div className="bg-sky-600 p-4">
                             <h3 className="text-xl font-bold text-white">{event.title}</h3>
-                            <p className="text-indigo-100 text-sm mt-1">{event.description || 'No description provided.'}</p>
-                            <span className="inline-block mt-2 bg-indigo-800 text-xs px-2 py-1 rounded text-indigo-100">
+                            <p className="text-sky-100 text-sm mt-1">{event.description || 'No description provided.'}</p>
+                            <span className="inline-block mt-2 bg-sky-800 text-xs px-2 py-1 rounded text-sky-100">
                                 For: {event.targetAudience}
                             </span>
                         </div>
@@ -155,7 +155,7 @@ const UserDashboard = () => {
                                     const percent = Math.min((slot.bookedSlots / slot.totalSlots) * 100, 100);
 
                                     return (
-                                        <div key={slot._id} className={`border rounded-lg p-4 relative ${isFull ? 'bg-gray-50 border-gray-200' : 'bg-white border-indigo-100 hover:border-indigo-300'}`}>
+                                        <div key={slot._id} className={`border rounded-lg p-4 relative ${isFull ? 'bg-gray-50 border-gray-200' : 'bg-white border-sky-100 hover:border-sky-300'}`}>
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="text-sm font-medium text-gray-900">
                                                     {new Date(slot.startTime).toLocaleString('en-IN', {
@@ -177,7 +177,7 @@ const UserDashboard = () => {
                                                     <span>{slot.bookedSlots} / {slot.totalSlots}</span>
                                                 </div>
                                                 <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                                    <div className={`h-1.5 rounded-full ${isFull ? 'bg-red-400' : 'bg-indigo-500'}`} style={{ width: `${percent}%` }}></div>
+                                                    <div className={`h-1.5 rounded-full ${isFull ? 'bg-red-400' : 'bg-sky-500'}`} style={{ width: `${percent}%` }}></div>
                                                 </div>
                                             </div>
 
@@ -186,7 +186,7 @@ const UserDashboard = () => {
                                                 disabled={isFull}
                                                 className={`w-full py-2 text-sm font-semibold rounded transition-colors ${isFull
                                                     ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                                                    : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                                                    : 'text-sky-600 bg-sky-50 hover:bg-sky-100'
                                                     }`}
                                             >
                                                 {isFull ? 'Unavailable' : 'Book Slot'}
