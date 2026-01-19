@@ -127,7 +127,7 @@ const Register = () => {
                         {/* Department */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                            <select name="department" required className="input-field" value={department} onChange={onChange}>
+                            <select name="department" required className="select-field" value={department} onChange={onChange}>
                                 <option value="">Select Department</option>
                                 <option value="CSE">CSE</option>
                                 <option value="IT">IT</option>
@@ -150,7 +150,7 @@ const Register = () => {
                         {/* Section */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
-                            <select name="section" required className="input-field" value={section} onChange={onChange}>
+                            <select name="section" required className="select-field" value={section} onChange={onChange}>
                                 <option value="">Select Section</option>
                                 <option value="A">A</option>
                                 <option value="B">B</option>
@@ -164,7 +164,7 @@ const Register = () => {
                         {/* Year */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                            <select name="year" required className="input-field" value={year} onChange={onChange}>
+                            <select name="year" required className="select-field" value={year} onChange={onChange}>
                                 <option value="">Select Year</option>
                                 <option value="1">1st Year</option>
                                 <option value="2">2nd Year</option>
@@ -177,7 +177,7 @@ const Register = () => {
                         {/* Student Type */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Student Type</label>
-                            <select name="studentType" required className="input-field" value={studentType} onChange={onChange}>
+                            <select name="studentType" required className="select-field" value={studentType} onChange={onChange}>
                                 <option value="">Select Type</option>
                                 <option value="Day Scholar">Day Scholar</option>
                                 <option value="Hosteller">Hosteller</option>
@@ -187,7 +187,7 @@ const Register = () => {
                         {/* Gender (Mandatory for All) */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                            <select name="gender" required className="input-field" value={gender} onChange={onChange}>
+                            <select name="gender" required className="select-field" value={gender} onChange={onChange}>
                                 <option value="">Select Gender</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
