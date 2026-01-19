@@ -124,26 +124,27 @@ const Register = () => {
                             <input name="mobile" type="text" pattern="\d{10}" title="10 digit mobile number" required className="input-field" value={mobile} onChange={onChange} />
                         </div>
 
-                        {/* Department */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
                             <select name="department" required className="select-field" value={department} onChange={onChange}>
                                 <option value="">Select Department</option>
-                                <option value="CSE">CSE</option>
-                                <option value="IT">IT</option>
+                                <option value="AIDS">AIDS</option>
+                                <option value="AIML">AIML</option>
+                                <option value="AUTO">AUTO</option>
+                                <option value="BSC">BSC</option>
+                                <option value="CHEM">CHEM</option>
+                                <option value="CIVIL">CIVIL</option>
                                 <option value="CSD">CSD</option>
+                                <option value="CSE">CSE</option>
                                 <option value="ECE">ECE</option>
                                 <option value="EEE">EEE</option>
                                 <option value="EIE">EIE</option>
-                                <option value="MECH">MECH</option>
-                                <option value="AUTO">AUTO</option>
-                                <option value="CIVIL">CIVIL</option>
-                                <option value="MTS">MTS</option>
-                                <option value="CHEM">CHEM</option>
                                 <option value="FT">FT</option>
-                                <option value="BSC">BSC</option>
+                                <option value="IT">IT</option>
                                 <option value="MBA">MBA</option>
                                 <option value="MCA">MCA</option>
+                                <option value="MECH">MECH</option>
+                                <option value="MTS">MTS</option>
                             </select>
                         </div>
 

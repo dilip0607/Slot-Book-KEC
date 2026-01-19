@@ -57,7 +57,7 @@ exports.register = async (req, res) => {
         }
 
         // Validation: Department (Optional stricter check if needed, but schema handles type mostly)
-        const allowedDepts = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'EIE', 'MECH', 'AUTO', 'CIVIL', 'MTS', 'CHEM', 'FT', 'BSC', 'MBA', 'MCA'];
+        const allowedDepts = ['AIDS', 'AIML', 'AUTO', 'BSC', 'CHEM', 'CIVIL', 'CSD', 'CSE', 'ECE', 'EEE', 'EIE', 'FT', 'IT', 'MBA', 'MCA', 'MECH', 'MTS'];
         if (!allowedDepts.includes(department)) {
             return res.status(400).json({ message: 'Invalid department selection' });
         }
