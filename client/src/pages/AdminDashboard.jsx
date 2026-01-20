@@ -2,6 +2,54 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
+const TimePicker = ({ value, onChange, className }) => {
+    let hour = '12', minute = '00', period = 'AM';
+    if (value) {
+        const [h, m] = value.split(':');
+        let hNum = parseInt(h, 10);
+        period = hNum >= 12 ? 'PM' : 'AM';
+        if (hNum > 12) hNum -= 12;
+        if (hNum === 0) hNum = 12;
+        hour = hNum.toString().padStart(2, '0');
+        minute = m;
+    }
+
+    const handleChange = (type, val) => {
+        let hNum = parseInt(hour, 10);
+        let mStr = minute;
+        let pStr = period;
+
+        if (type === 'hour') hNum = parseInt(val, 10);
+        if (type === 'minute') mStr = val;
+        if (type === 'period') pStr = val;
+
+        if (pStr === 'PM' && hNum < 12) hNum += 12;
+        if (pStr === 'AM' && hNum === 12) hNum = 0;
+
+        onChange(`${hNum.toString().padStart(2, '0')}:${mStr}`);
+    };
+
+    return (
+        <div className={`flex items-center gap-1 ${className}`}>
+            <select value={hour} onChange={(e) => handleChange('hour', e.target.value)} className="input-field px-1 py-2 text-sm w-16 appearance-none text-center">
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                    <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</option>
+                ))}
+            </select>
+            <span className="font-bold text-gray-400">:</span>
+            <select value={minute} onChange={(e) => handleChange('minute', e.target.value)} className="input-field px-1 py-2 text-sm w-16 appearance-none text-center">
+                {Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0')).map(m => (
+                    <option key={m} value={m}>{m}</option>
+                ))}
+            </select>
+            <select value={period} onChange={(e) => handleChange('period', e.target.value)} className="input-field px-1 py-2 text-sm w-16 appearance-none text-center ml-1">
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+            </select>
+        </div>
+    );
+};
+
 const AdminDashboard = () => {
     const { user } = useAuth();
     const [events, setEvents] = useState([]);
@@ -262,22 +310,18 @@ const AdminDashboard = () => {
                                         </div>
                                         <div className="w-full md:w-32">
                                             <label className="block text-xs text-gray-500 mb-1">Start Time</label>
-                                            <input
-                                                type="time"
-                                                required
+                                            <TimePicker
                                                 value={slot.startTime}
-                                                onChange={(e) => handleSlotChange(index, 'startTime', e.target.value)}
-                                                className="input-field w-full cursor-pointer"
+                                                onChange={(val) => handleSlotChange(index, 'startTime', val)}
+                                                className="w-full"
                                             />
                                         </div>
                                         <div className="w-full md:w-32">
                                             <label className="block text-xs text-gray-500 mb-1">End Time</label>
-                                            <input
-                                                type="time"
-                                                required
+                                            <TimePicker
                                                 value={slot.endTime}
-                                                onChange={(e) => handleSlotChange(index, 'endTime', e.target.value)}
-                                                className="input-field w-full cursor-pointer"
+                                                onChange={(val) => handleSlotChange(index, 'endTime', val)}
+                                                className="w-full"
                                             />
                                         </div>
                                         <div className="w-full md:w-24">
@@ -427,7 +471,7 @@ const AdminDashboard = () => {
                                                                         <td className="px-4 py-2 text-sm text-gray-500">{reg.user.rollNumber}</td>
                                                                         <td className="px-4 py-2 text-sm text-gray-500">{reg.user.department}</td>
                                                                         <td className="px-4 py-2 text-sm text-gray-500">
-                                                                            {s ? new Date(s.startTime).toLocaleDateString('en-IN') : 'N/A'}
+                                                                            {s ? new Date(s.startTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', hour12: true }) : 'N/A'}
                                                                         </td>
                                                                     </tr>
                                                                 );

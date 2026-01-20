@@ -63,7 +63,6 @@ exports.createEvent = async (req, res) => {
             title,
             description,
             targetAudience,
-            targetAudience,
             slots: slots.map(s => ({
                 ...s,
                 startTime: new Date(s.startTime), // Full Date Object
@@ -217,7 +216,6 @@ exports.register = async (req, res) => {
         try {
             await emailService.sendBookingConfirmation(
                 req.user.email,
-                req.user.name,
                 req.user.name,
                 eventInfo.title,
                 slotInfo.startTime, // Date object (for Date)
