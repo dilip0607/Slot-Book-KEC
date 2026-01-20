@@ -149,12 +149,17 @@ const AdminDashboard = () => {
                     title,
                     description,
                     targetAudience,
-                    slots: slots.map(s => ({
-                        totalSlots: Number(s.totalSlots),
-                        // Combine Date + Time components
-                        startTime: `${s.date}T${s.startTime}`,
-                        endTime: `${s.date}T${s.endTime}`
-                    }))
+                    slots: slots.map(s => {
+                        // Construct Date objects in Browser's Local Time (IST)
+                        const start = new Date(`${s.date}T${s.startTime}`);
+                        const end = new Date(`${s.date}T${s.endTime}`);
+                        return {
+                            totalSlots: Number(s.totalSlots),
+                            // Send UTC ISO strings to backend
+                            startTime: start.toISOString(),
+                            endTime: end.toISOString()
+                        };
+                    })
                 },
                 { headers: { Authorization: `Bearer ${user.token}` } }
             );
