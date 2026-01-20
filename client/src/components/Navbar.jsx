@@ -19,9 +19,8 @@ const Navbar = () => {
                         <img
                             src="/kecnewlogo.jpg"
                             alt="KEC Logo"
-                            className="h-14 w-auto group-hover:scale-105 transition-transform duration-200"
+                            className="h-16 w-auto group-hover:scale-105 transition-transform duration-200"
                         />
-
                     </Link>
 
                     <div className="flex items-center space-x-4">

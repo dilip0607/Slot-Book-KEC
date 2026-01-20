@@ -77,8 +77,8 @@ const AdminDashboard = () => {
                     slots: slots.map(s => ({
                         ...s,
                         totalSlots: Number(s.totalSlots),
-                        // Append IST offset so backend treats input as IST regardless of server time
-                        startTime: new Date(`${s.startTime}:00+05:30`)
+                        // Append default time (09:00 AM) and IST offset
+                        startTime: new Date(`${s.startTime}T09:00:00+05:30`)
                     }))
                 },
                 { headers: { Authorization: `Bearer ${user.token}` } }
@@ -155,7 +155,7 @@ const AdminDashboard = () => {
 
     return (
         <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 mb-8">Admin Dashboard</h1>
+            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-700 to-sky-600 mb-8">Admin Dashboard</h1>
 
             {/* Create Event Section */}
             <div className="card mb-10 transform transition-all hover:shadow-2xl bg-white p-6 rounded-xl border border-gray-100">
@@ -177,7 +177,7 @@ const AdminDashboard = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Target Audience</label>
-                            <select value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} className="input-field">
+                            <select value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} className="select-field">
                                 <option value="Common">Common (All)</option>
                                 <option value="Hosteller">Hosteller Only</option>
                                 <option value="Day Scholar">Day Scholar Only</option>
@@ -195,14 +195,14 @@ const AdminDashboard = () => {
                         {slots.map((slot, index) => (
                             <div key={index} className="flex flex-col md:flex-row gap-4 mb-4 items-end">
                                 <div className="flex-1">
-                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Date & Start Time (IST)</label>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Event Date</label>
                                     <input
-                                        type="datetime-local"
+                                        type="date"
                                         required
                                         value={slot.startTime}
                                         onChange={(e) => handleSlotChange(index, 'startTime', e.target.value)}
-                                        className="input-field w-full"
-                                        placeholder="Select Date and Time"
+                                        className="input-field w-full cursor-pointer"
+                                        placeholder="Select Date"
                                     />
                                 </div>
                                 <div className="w-full md:w-32">
@@ -284,42 +284,11 @@ const AdminDashboard = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">
                                                 <button onClick={() => handleDeleteEvent(event._id)} className="text-red-500 hover:text-red-700 font-semibold transition-colors">Delete</button>
-                                                <button onClick={() => handleViewRegistrations(event._id)} className="text-sky-600 hover:text-sky-800 font-semibold transition-colors">
-                                                    {expandedEvent === event._id ? 'Hide' : 'View'} Registrations
-                                                </button>
                                                 <button onClick={() => handleExportExcel(event._id, event.title)} className="text-green-600 hover:text-green-800 font-semibold transition-colors">
                                                     Export Excel
                                                 </button>
                                             </td>
                                         </tr>
-                                        {expandedEvent === event._id && (
-                                            <tr>
-                                                <td colSpan="5" className="bg-sky-50/50 px-6 py-6 border-b border-sky-100">
-                                                    <h3 className="text-sm font-bold text-sky-900 uppercase tracking-wide mb-4">Registrations for {event.title}</h3>
-                                                    {registrations.length === 0 ? (
-                                                        <p className="text-gray-500 text-sm italic">No registrations found.</p>
-                                                    ) : (
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                            {registrations.map(reg => {
-                                                                const s = event.slots.find(sl => sl._id === reg.slotId);
-                                                                return (
-                                                                    <div key={reg._id} className="bg-white p-3 rounded border border-sky-100 shadow-sm flex items-center">
-                                                                        <div className="h-8 w-8 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 font-bold mr-3 text-xs">
-                                                                            {reg.user.name.charAt(0)}
-                                                                        </div>
-                                                                        <div>
-                                                                            <p className="text-sm font-medium text-gray-900">{reg.user.name}</p>
-                                                                            <p className="text-xs text-gray-500">{reg.user.email} <span className='text-gray-400'>|</span> {reg.user.studentType}</p>
-                                                                            <p className="text-xs text-sky-500 mt-1">Slot: {s ? new Date(s.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        )}
                                     </React.Fragment>
                                 );
                             })}

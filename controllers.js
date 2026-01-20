@@ -1,6 +1,7 @@
 const Event = require('./models/Event');
 const Registration = require('./models/Registration');
 const User = require('./models/User');
+const ArchivedEvent = require('./models/ArchivedEvent');
 const XLSX = require('xlsx');
 const emailService = require('./emailService');
 const mongoose = require('mongoose');
@@ -73,7 +74,7 @@ exports.createEvent = async (req, res) => {
     }
 };
 
-// @desc    Delete an event
+// @desc    Delete an event (Archive it first)
 // @route   DELETE /api/events/:id
 // @access  Private/Admin
 exports.deleteEvent = async (req, res) => {
@@ -81,22 +82,45 @@ exports.deleteEvent = async (req, res) => {
         const event = await Event.findById(req.params.id);
 
         if (event) {
-            // Soft delete or hard delete? User asked for deletion.
-            // We'll do a hard delete for simplicity but check for registrations?
-            // User requested: "Ensure delete ... works reliably"
-            // "Ensure inactive/deleted events do not accept registrations" -> implies soft delete might be safer, but hard delete works if we cleanup.
-            // Let's do hard delete for now as per "Delete an event" feature.
+            // Fetch registrations to archive
+            const registrations = await Registration.find({ event: event._id }).populate('user');
 
-            // Optional: Delete associated registrations
+            const archivedRegistrations = registrations.map(reg => ({
+                originalRegistrationId: reg._id,
+                user: reg.user ? {
+                    name: reg.user.name,
+                    email: reg.user.email,
+                    rollNumber: reg.user.rollNumber,
+                    department: reg.user.department,
+                    year: reg.user.year,
+                    mobile: reg.user.mobile,
+                    studentType: reg.user.studentType
+                } : {}, // Handle case if user is null
+                slotId: reg.slotId,
+                registeredAt: reg.registeredAt
+            }));
+
+            // Create Archived Event
+            await ArchivedEvent.create({
+                originalEventId: event._id,
+                title: event.title,
+                description: event.description,
+                targetAudience: event.targetAudience,
+                slots: event.slots,
+                registrations: archivedRegistrations
+            });
+
+            // Delete from active collections
             await Registration.deleteMany({ event: event._id });
             await event.deleteOne();
 
-            res.json({ message: 'Event removed' });
+            res.json({ message: 'Event moved to archive (retained for 30 days)' });
         } else {
             res.status(404).json({ message: 'Event not found' });
         }
     } catch (error) {
-        res.status(500).json({ message: 'Server Error' });
+        console.error(error);
+        res.status(500).json({ message: 'Server Error during deletion' });
     }
 };
 
@@ -255,6 +279,8 @@ exports.exportEventRegistrations = async (req, res) => {
 
             return {
                 'Event Title': event.title,
+                'Event Description': event.description || 'N/A',
+                'Event Target Audience': event.targetAudience || 'N/A',
                 'Slot Time': slot ? new Date(slot.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
                 'User Name': user.name,
                 'Roll No': user.rollNumber || 'N/A',

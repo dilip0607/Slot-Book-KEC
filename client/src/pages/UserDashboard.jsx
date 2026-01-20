@@ -141,7 +141,7 @@ const UserDashboard = () => {
                     <div key={event._id} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300">
                         <div className="bg-sky-600 p-4">
                             <h3 className="text-xl font-bold text-white">{event.title}</h3>
-                            <p className="text-sky-100 text-sm mt-1">{event.description || 'No description provided.'}</p>
+                            <p className="text-white/90 text-base font-medium mt-3 leading-relaxed">{event.description || 'No description provided.'}</p>
                             <span className="inline-block mt-2 bg-sky-800 text-xs px-2 py-1 rounded text-sky-100">
                                 For: {event.targetAudience}
                             </span>
@@ -160,7 +160,7 @@ const UserDashboard = () => {
                                                 <div className="text-sm font-medium text-gray-900">
                                                     {new Date(slot.startTime).toLocaleString('en-IN', {
                                                         timeZone: 'Asia/Kolkata',
-                                                        weekday: 'short', month: 'short', day: 'numeric',
+                                                        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
                                                         hour: '2-digit', minute: '2-digit'
                                                     })}
                                                 </div>
