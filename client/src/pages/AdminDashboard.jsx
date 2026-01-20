@@ -10,7 +10,8 @@ const AdminDashboard = () => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [targetAudience, setTargetAudience] = useState('Common');
-    const [slots, setSlots] = useState([{ startTime: '', totalSlots: '' }]); // Array of slot objects
+    // State for slots now needs separate date, start time, end time
+    const [slots, setSlots] = useState([{ date: '', startTime: '', endTime: '', totalSlots: '' }]);
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -65,7 +66,7 @@ const AdminDashboard = () => {
     };
 
     const addSlot = () => {
-        setSlots([...slots, { startTime: '', totalSlots: '' }]);
+        setSlots([...slots, { date: '', startTime: '', endTime: '', totalSlots: '' }]);
     };
 
     const removeSlot = (index) => {
@@ -81,9 +82,17 @@ const AdminDashboard = () => {
         setSuccess('');
 
         // Basic validation
-        if (slots.some(s => !s.startTime || !s.totalSlots)) {
-            setError('Please fill in all slot details.');
+        if (slots.some(s => !s.date || !s.startTime || !s.endTime || !s.totalSlots)) {
+            setError('Please fill in all slot details (Date, Start Time, End Time, Capacity).');
             return;
+        }
+
+        // Validate End Time > Start Time
+        for (const slot of slots) {
+            if (slot.startTime >= slot.endTime) {
+                setError('End Time must be after Start Time for all slots.');
+                return;
+            }
         }
 
         try {
@@ -93,10 +102,10 @@ const AdminDashboard = () => {
                     description,
                     targetAudience,
                     slots: slots.map(s => ({
-                        ...s,
                         totalSlots: Number(s.totalSlots),
-                        // Date-only: Input is YYYY-MM-DD
-                        startTime: new Date(s.startTime)
+                        // Combine Date + Time components
+                        startTime: `${s.date}T${s.startTime}`,
+                        endTime: `${s.date}T${s.endTime}`
                     }))
                 },
                 { headers: { Authorization: `Bearer ${user.token}` } }
@@ -113,20 +122,31 @@ const AdminDashboard = () => {
         setTitle('');
         setDescription('');
         setTargetAudience('Common');
-        setSlots([{ startTime: '', totalSlots: '' }]);
+        setSlots([{ date: '', startTime: '', endTime: '', totalSlots: '' }]);
         setIsEditing(false);
         setEditingEventId(null);
     };
 
     const handleDeleteEvent = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this event? This action will close registrations.')) return;
+        if (!window.confirm('Are you sure you want to move this event to the Recycle Bin? It will be retained for 30 days.')) return;
         try {
-            await axios.delete(`/api/events/${id}`, {
+            const res = await axios.delete(`/api/events/${id}`, {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
+            // Update UI state
+            setSuccess('Event moved to Recycle Bin. It will be permanently deleted after 30 days.');
+            setError('');
+
+            // Refresh both lists to ensure data consistency
             fetchEvents();
+            fetchArchivedEvents();
+
+            // Scroll to top to show success message
+            window.scrollTo(0, 0);
         } catch (err) {
-            alert('Failed to delete event');
+            console.error(err);
+            setError('Failed to move event to Recycle Bin');
+            setSuccess('');
         }
     };
 
@@ -231,17 +251,36 @@ const AdminDashboard = () => {
                                 {slots.map((slot, index) => (
                                     <div key={index} className="flex flex-col md:flex-row gap-4 mb-4 items-end">
                                         <div className="flex-1">
-                                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Event Date</label>
+                                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Date</label>
                                             <input
                                                 type="date"
+                                                required
+                                                value={slot.date}
+                                                onChange={(e) => handleSlotChange(index, 'date', e.target.value)}
+                                                className="input-field w-full cursor-pointer"
+                                            />
+                                        </div>
+                                        <div className="w-full md:w-32">
+                                            <label className="block text-xs text-gray-500 mb-1">Start Time</label>
+                                            <input
+                                                type="time"
                                                 required
                                                 value={slot.startTime}
                                                 onChange={(e) => handleSlotChange(index, 'startTime', e.target.value)}
                                                 className="input-field w-full cursor-pointer"
-                                                placeholder="Select Date"
                                             />
                                         </div>
                                         <div className="w-full md:w-32">
+                                            <label className="block text-xs text-gray-500 mb-1">End Time</label>
+                                            <input
+                                                type="time"
+                                                required
+                                                value={slot.endTime}
+                                                onChange={(e) => handleSlotChange(index, 'endTime', e.target.value)}
+                                                className="input-field w-full cursor-pointer"
+                                            />
+                                        </div>
+                                        <div className="w-full md:w-24">
                                             <label className="block text-xs text-gray-500 mb-1">Capacity</label>
                                             <input
                                                 type="number"

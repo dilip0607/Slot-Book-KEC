@@ -41,15 +41,26 @@ const sendEmailViaBrevo = async (toEmail, subject, htmlContent) => {
 /**
  * Send booking confirmation email to user
  */
-const sendBookingConfirmation = async (userEmail, userName, eventTitle, eventDate) => {
+const sendBookingConfirmation = async (userEmail, userName, eventTitle, eventDate, startTime, endTime) => {
+    const formattedDate = new Date(eventDate).toLocaleDateString('en-IN', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'
+    });
+
+    const formatTime = (date) => new Date(date).toLocaleTimeString('en-IN', {
+        hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'
+    });
+
+    const timeRange = `${formatTime(startTime)} to ${formatTime(endTime)}`;
+
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
             <h2 style="color: #4f46e5; text-align: center;">Booking Confirmed</h2>
             <p>Hello <strong>${userName}</strong>,</p>
             <p>Your slot for <strong>${eventTitle}</strong> has been successfully booked.</p>
             <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <p style="margin: 0;"><strong>Event:</strong> ${eventTitle}</p>
-                <p style="margin: 0;"><strong>Date:</strong> ${new Date(eventDate).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+                <p style="margin: 5px 0;"><strong>Event:</strong> ${eventTitle}</p>
+                <p style="margin: 5px 0;"><strong>Date:</strong> ${formattedDate}</p>
+                <p style="margin: 5px 0;"><strong>Time:</strong> ${timeRange}</p>
             </div>
             <p>Please be on time and bring your identification.</p>
             <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">

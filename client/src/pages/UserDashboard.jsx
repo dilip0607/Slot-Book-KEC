@@ -117,7 +117,9 @@ const UserDashboard = () => {
                                 <div key={reg._id} className="bg-white border-2 border-sky-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
                                     <h3 className="text-lg font-bold text-gray-900 mb-2">{reg.event?.title || 'Unknown Event'}</h3>
                                     <p className="text-sm text-gray-500 mb-1">
-                                        <span className="font-semibold">Slot Time:</span> {slot ? new Date(slot.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}
+                                        <span className="font-semibold">Slot Time:</span> {slot ?
+                                            `${new Date(slot.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${new Date(slot.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+                                            : 'N/A'}
                                     </p>
                                     <p className="text-xs text-gray-400 mb-4">
                                         Registered on: {new Date(reg.registeredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
@@ -161,6 +163,10 @@ const UserDashboard = () => {
                                                     {new Date(slot.startTime).toLocaleString('en-IN', {
                                                         weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
                                                     })}
+                                                    <div className="text-xs text-gray-500 mt-1">
+                                                        {new Date(slot.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} -
+                                                        {new Date(slot.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                    </div>
                                                 </div>
                                                 {isFull ? (
                                                     <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">FULL</span>

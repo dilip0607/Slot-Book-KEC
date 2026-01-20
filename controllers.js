@@ -63,7 +63,12 @@ exports.createEvent = async (req, res) => {
             title,
             description,
             targetAudience,
-            slots, // Array of { startTime, endTime, totalSlots }
+            targetAudience,
+            slots: slots.map(s => ({
+                ...s,
+                startTime: new Date(s.startTime), // Full Date Object
+                endTime: new Date(s.endTime)     // Full Date Object
+            })),
         });
 
         const createdEvent = await event.save();
@@ -213,8 +218,11 @@ exports.register = async (req, res) => {
             await emailService.sendBookingConfirmation(
                 req.user.email,
                 req.user.name,
+                req.user.name,
                 eventInfo.title,
-                slotInfo.startTime
+                slotInfo.startTime, // Date object (for Date)
+                slotInfo.startTime, // Date object (for Start Time)
+                slotInfo.endTime    // Date object (for End Time)
             );
 
             // Check if FULL (optional: notify admin)
