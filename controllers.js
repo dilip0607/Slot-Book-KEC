@@ -279,7 +279,6 @@ exports.exportEventRegistrations = async (req, res) => {
 
             return {
                 'Event Title': event.title,
-                'Event Description': event.description || 'N/A',
                 'Event Target Audience': event.targetAudience || 'N/A',
                 'Slot Time': slot ? new Date(slot.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
                 'User Name': user.name,
@@ -399,5 +398,18 @@ exports.cancelRegistration = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// @desc    Get all archived events
+// @route   GET /api/events/archived
+// @access  Private/Admin
+exports.getArchivedEvents = async (req, res) => {
+    try {
+        const archivedEvents = await ArchivedEvent.find().sort({ deletedAt: -1 });
+        res.json(archivedEvents);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error fetching archived events' });
     }
 };

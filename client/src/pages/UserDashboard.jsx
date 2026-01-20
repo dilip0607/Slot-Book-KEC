@@ -159,9 +159,7 @@ const UserDashboard = () => {
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="text-sm font-medium text-gray-900">
                                                     {new Date(slot.startTime).toLocaleString('en-IN', {
-                                                        timeZone: 'Asia/Kolkata',
-                                                        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
-                                                        hour: '2-digit', minute: '2-digit'
+                                                        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
                                                     })}
                                                 </div>
                                                 {isFull ? (

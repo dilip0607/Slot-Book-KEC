@@ -44,6 +44,7 @@ app.delete('/api/registrations/:id', protect, controllers.cancelRegistration);
 app.post('/api/events', protect, admin, controllers.createEvent);
 app.put('/api/events/:id', protect, admin, controllers.updateEvent);
 app.delete('/api/events/:id', protect, admin, controllers.deleteEvent);
+app.get('/api/events/archived', protect, admin, controllers.getArchivedEvents);
 app.get('/api/events/:id/registrations', protect, admin, controllers.getEventRegistrations);
 app.get('/api/events/:id/export', protect, admin, controllers.exportEventRegistrations);
 
