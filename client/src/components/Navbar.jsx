@@ -17,7 +17,7 @@ const Navbar = () => {
                 <div className="flex justify-between items-center h-20">
                     <Link to="/" className="flex items-center gap-3 group">
                         <img
-                            src="/kec_logo.png"
+                            src="/kecnewlogo.jpg"
                             alt="KEC Logo"
                             className="h-14 w-auto group-hover:scale-105 transition-transform duration-200"
                         />
