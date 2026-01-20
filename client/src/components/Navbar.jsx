@@ -21,14 +21,7 @@ const Navbar = () => {
                             alt="KEC Logo"
                             className="h-14 w-auto group-hover:scale-105 transition-transform duration-200"
                         />
-                        <div className="flex flex-col">
-                            <h1 className="text-lg sm:text-2xl font-bold text-[#0ea5e9] tracking-tight leading-none uppercase font-serif">
-                                Kongu Engineering College
-                            </h1>
-                            <span className="text-[10px] sm:text-xs font-semibold text-[#22c55e] tracking-[0.2em] uppercase">
-                                Transform Yourself
-                            </span>
-                        </div>
+
                     </Link>
 
                     <div className="flex items-center space-x-4">
