@@ -74,6 +74,8 @@ const AdminDashboard = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [editingEventId, setEditingEventId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [activeTab, setActiveTab] = useState('active'); // 'active' or 'archive'
     const [archivedEvents, setArchivedEvents] = useState([]);
@@ -81,12 +83,15 @@ const AdminDashboard = () => {
 
     const fetchEvents = async () => {
         try {
+            setIsLoading(true);
             const { data } = await axios.get('/api/events', {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
             setEvents(data);
         } catch (err) {
             console.error(err);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -148,6 +153,7 @@ const AdminDashboard = () => {
         }
 
         try {
+            setIsSubmitting(true);
             await axios.post('/api/events',
                 {
                     title,
@@ -174,6 +180,8 @@ const AdminDashboard = () => {
             fetchEvents();
         } catch (err) {
             showModal({ type: 'error', message: err.response?.data?.message || 'Failed to create event' });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -418,8 +426,12 @@ const AdminDashboard = () => {
                             </div>
 
                             <div>
-                                <button type="submit" className="w-full h-[50px] shadow-lg rounded-lg font-bold text-white bg-sky-600 hover:bg-sky-700 transition-all">
-                                    Create Event
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className={`w-full h-[50px] shadow-lg rounded-lg font-bold text-white transition-all ${isSubmitting ? 'bg-sky-400 cursor-wait' : 'bg-sky-600 hover:bg-sky-700'}`}
+                                >
+                                    {isSubmitting ? 'Creating Event...' : 'Create Event'}
                                 </button>
                             </div>
                         </form>
