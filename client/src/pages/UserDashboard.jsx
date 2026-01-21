@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useModal } from '../context/ModalContext';
 
 const UserDashboard = () => {
     const { user } = useAuth();
+    const { showModal } = useModal();
     const [events, setEvents] = useState([]);
     const [myRegistrations, setMyRegistrations] = useState([]);
-    const [message, setMessage] = useState('');
-    const [msgType, setMsgType] = useState(''); // 'success' or 'error'
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchData = async () => {
@@ -31,36 +31,36 @@ const UserDashboard = () => {
     }, [user]);
 
     const handleRegister = async (eventId, slotId) => {
-        setMessage('');
         try {
             await axios.post('/api/register',
                 { eventId, slotId },
                 { headers: { Authorization: `Bearer ${user.token}` } }
             );
-            setMessage('Slot confirmed successfully.');
-            setMsgType('success');
+            showModal({ type: 'success', message: 'Slot confirmed successfully.' });
             fetchData();
         } catch (err) {
-            setMessage(err.response?.data?.message || 'Registration failed');
-            setMsgType('error');
+            showModal({ type: 'error', message: err.response?.data?.message || 'Registration failed' });
             fetchData();
         }
     };
 
     const handleCancel = async (regId) => {
-        if (!window.confirm('Are you sure you want to cancel this booking?')) return;
-
-        try {
-            await axios.delete(`/api/registrations/${regId}`, {
-                headers: { Authorization: `Bearer ${user.token}` }
-            });
-            setMessage('Booking cancelled successfully.');
-            setMsgType('success');
-            fetchData();
-        } catch (err) {
-            setMessage(err.response?.data?.message || 'Cancellation failed');
-            setMsgType('error');
-        }
+        showModal({
+            type: 'confirm',
+            title: 'Cancel Booking?',
+            message: 'Are you sure you want to cancel this booking?',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`/api/registrations/${regId}`, {
+                        headers: { Authorization: `Bearer ${user.token}` }
+                    });
+                    showModal({ type: 'success', message: 'Booking cancelled successfully.' });
+                    fetchData();
+                } catch (err) {
+                    showModal({ type: 'error', message: err.response?.data?.message || 'Cancellation failed' });
+                }
+            }
+        });
     };
 
     const filteredEvents = events.filter(event =>
@@ -92,11 +92,7 @@ const UserDashboard = () => {
                 </div>
             </div>
 
-            {message && (
-                <div className={`p-4 mb-6 rounded-lg border-l-4 shadow-sm ${msgType === 'success' ? 'bg-green-50 text-green-700 border-green-500' : 'bg-red-50 text-red-700 border-red-500'}`}>
-                    <p className="font-medium">{message}</p>
-                </div>
-            )}
+
 
             {/* My Bookings Section */}
             {myRegistrations.length > 0 && (
