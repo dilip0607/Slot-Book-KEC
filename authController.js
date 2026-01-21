@@ -224,7 +224,8 @@ exports.forgotPassword = async (req, res) => {
             return res.status(500).json({ message: 'Email could not be sent' });
         }
     } catch (error) {
-        res.status(500).json({ message: 'Server Error' });
+        console.error('Forgot Password Error:', error);
+        res.status(500).json({ message: error.message || 'Server Error' });
     }
 };
 

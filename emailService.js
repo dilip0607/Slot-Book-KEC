@@ -35,6 +35,7 @@ const sendEmailViaBrevo = async (toEmail, subject, htmlContent) => {
         return response.data;
     } catch (error) {
         console.error('❌ Error sending email via Brevo:', error.response?.data || error.message);
+        throw error; // Re-throw so controller knows it failed
     }
 };
 
