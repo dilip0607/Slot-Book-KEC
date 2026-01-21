@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const bodyParser = require('body-parser');
 const path = require('path');
 const dotenv = require('dotenv');
@@ -17,6 +18,7 @@ const PORT = process.env.PORT || 3001;
 connectDB();
 
 app.use(cors());
+app.use(compression());
 app.use(bodyParser.json());
 
 // API Routes

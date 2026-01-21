@@ -263,23 +263,18 @@ exports.register = async (req, res) => {
         });
 
         // 7. Trigger Notification Email (Async - outside transaction)
-        try {
-            await emailService.sendBookingConfirmation(
-                req.user.email,
-                req.user.name,
-                eventInfo.title,
-                slotInfo.startTime, // Date object (for Date)
-                slotInfo.startTime, // Date object (for Start Time)
-                slotInfo.endTime    // Date object (for End Time)
-            );
-
+        // Optimization: Do NOT await this. Let it run in background to speed up response.
+        emailService.sendBookingConfirmation(
+            req.user.email,
+            req.user.name,
+            eventInfo.title,
+            slotInfo.startTime,
+            slotInfo.startTime,
+            slotInfo.endTime
+        ).then(async () => {
             // Check if FULL (optional: notify admin)
             if (slotInfo.bookedSlots >= slotInfo.totalSlots) {
-                // Send email to admin
-                // Assuming fixed admin email or env var. Using a placeholder or first admin found? 
-                // For now, let's use the env var EMAIL_USER or hardcoded admin email if available.
-                // Requirement: "Automatically send an email notification to admin."
-                const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER; // Fallback
+                const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
                 if (adminEmail) {
                     await emailService.sendSlotFullEmail(
                         adminEmail,
@@ -289,10 +284,7 @@ exports.register = async (req, res) => {
                     );
                 }
             }
-        } catch (emailErr) {
-            console.error('Email notification failed:', emailErr);
-            // Don't fail the request if email fails, booking is secure
-        }
+        }).catch(err => console.error('Email notification failed in background:', err));
 
     } catch (error) {
         await session.endSession();

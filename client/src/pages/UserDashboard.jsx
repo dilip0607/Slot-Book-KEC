@@ -9,28 +9,35 @@ const UserDashboard = () => {
     const [events, setEvents] = useState([]);
     const [myRegistrations, setMyRegistrations] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [bookingId, setBookingId] = useState(null);
 
     const fetchData = async () => {
         try {
+            setIsLoading(true);
             const [eventsRes, myRegsRes] = await Promise.all([
                 axios.get('/api/events', { headers: { Authorization: `Bearer ${user.token}` } }),
                 axios.get('/api/my-registrations', { headers: { Authorization: `Bearer ${user.token}` } })
             ]);
 
-            setEvents(eventsRes.data.filter(e => e.isActive));
+            setEvents(eventsRes.data.filter(e => e.isActive || !e.hasOwnProperty('isActive')));
             setMyRegistrations(myRegsRes.data);
         } catch (err) {
             console.error(err);
+        } finally {
+            setIsLoading(false);
         }
     };
 
     useEffect(() => {
         if (user && user.token) {
+            // Initial load
             fetchData();
         }
     }, [user]);
 
     const handleRegister = async (eventId, slotId) => {
+        setBookingId(slotId);
         try {
             await axios.post('/api/register',
                 { eventId, slotId },
@@ -40,7 +47,8 @@ const UserDashboard = () => {
             fetchData();
         } catch (err) {
             showModal({ type: 'error', message: err.response?.data?.message || 'Registration failed' });
-            fetchData();
+        } finally {
+            setBookingId(null);
         }
     };
 
@@ -55,6 +63,15 @@ const UserDashboard = () => {
         if (!event || !event.slots || !slotId) return null;
         return event.slots.find(s => s._id === slotId);
     };
+
+    if (isLoading && events.length === 0) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
+                <span className="ml-3 text-sky-600 font-medium">Loading Dashboard...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
@@ -168,13 +185,15 @@ const UserDashboard = () => {
 
                                             <button
                                                 onClick={() => handleRegister(event._id, slot._id)}
-                                                disabled={isFull}
+                                                disabled={isFull || bookingId === slot._id}
                                                 className={`w-full py-2 text-sm font-semibold rounded transition-colors ${isFull
                                                     ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                                                    : 'text-sky-600 bg-sky-50 hover:bg-sky-100'
+                                                    : bookingId === slot._id
+                                                        ? 'text-white bg-sky-400 cursor-wait'
+                                                        : 'text-sky-600 bg-sky-50 hover:bg-sky-100'
                                                     }`}
                                             >
-                                                {isFull ? 'Unavailable' : 'Book Slot'}
+                                                {bookingId === slot._id ? 'Booking...' : (isFull ? 'Unavailable' : 'Book Slot')}
                                             </button>
                                         </div>
                                     );
