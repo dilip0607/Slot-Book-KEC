@@ -44,24 +44,7 @@ const UserDashboard = () => {
         }
     };
 
-    const handleCancel = async (regId) => {
-        showModal({
-            type: 'confirm',
-            title: 'Cancel Booking?',
-            message: 'Are you sure you want to cancel this booking?',
-            onConfirm: async () => {
-                try {
-                    await axios.delete(`/api/registrations/${regId}`, {
-                        headers: { Authorization: `Bearer ${user.token}` }
-                    });
-                    showModal({ type: 'success', message: 'Booking cancelled successfully.' });
-                    fetchData();
-                } catch (err) {
-                    showModal({ type: 'error', message: err.response?.data?.message || 'Cancellation failed' });
-                }
-            }
-        });
-    };
+
 
     const filteredEvents = events.filter(event =>
         event.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -120,12 +103,7 @@ const UserDashboard = () => {
                                     <p className="text-xs text-gray-400 mb-4">
                                         Registered on: {new Date(reg.registeredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
                                     </p>
-                                    <button
-                                        onClick={() => handleCancel(reg._id)}
-                                        className="w-full py-2 rounded-lg text-red-600 font-semibold text-sm border-2 border-red-100 hover:bg-red-50 hover:border-red-200 transition-all"
-                                    >
-                                        Cancel Registration
-                                    </button>
+                                    {/* Cancel Registration removed for safety reasons */}
                                 </div>
                             );
                         })}
