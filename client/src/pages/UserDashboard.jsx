@@ -97,7 +97,14 @@ const UserDashboard = () => {
                                     <h3 className="text-lg font-bold text-gray-900 mb-2">{reg.event?.title || 'Unknown Event'}</h3>
                                     <p className="text-sm text-gray-500 mb-1">
                                         <span className="font-semibold">Slot Time:</span> {slot ?
-                                            `${new Date(slot.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${new Date(slot.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+                                            <div>
+                                                <span className="block text-gray-700 font-medium">
+                                                    {new Date(slot.startTime).toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                                </span>
+                                                <span className="block">
+                                                    {new Date(slot.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} - {new Date(slot.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                </span>
+                                            </div>
                                             : 'N/A'}
                                     </p>
                                     <p className="text-xs text-gray-400 mb-4">
