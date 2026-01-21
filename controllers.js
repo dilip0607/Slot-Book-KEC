@@ -28,7 +28,13 @@ exports.getAllEvents = async (req, res) => {
 
             query = {
                 $and: [
-                    { isActive: true },
+                    // Fix: Allow events where isActive is true OR missing (legacy events)
+                    {
+                        $or: [
+                            { isActive: true },
+                            { isActive: { $exists: false } }
+                        ]
+                    },
                     {
                         $or: [
                             { targetAudience: 'Common' },

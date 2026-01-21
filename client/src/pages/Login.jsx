@@ -33,7 +33,7 @@ const Login = () => {
             if (res.isAdmin) {
                 navigate('/admin');
             } else {
-                navigate('/dashboard');
+                navigate('/');
             }
         } else {
             showModal({ type: 'error', message: res.message });
