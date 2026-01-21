@@ -16,6 +16,16 @@ exports.getAllEvents = async (req, res) => {
         // If not admin, filter by target audience, gender, and batch
         if (req.user.role !== 'ADMIN') {
             const userBatch = req.user.batch; // e.g. "2027"
+
+            console.log('--- Debug Event Filtering ---');
+            console.log('User:', req.user.name);
+            console.log('User Role:', req.user.role);
+            console.log('User Attributes:', {
+                type: req.user.studentType,
+                gender: req.user.gender,
+                batch: req.user.batch
+            });
+
             query = {
                 $and: [
                     { isActive: true },
@@ -39,6 +49,7 @@ exports.getAllEvents = async (req, res) => {
                     }
                 ]
             };
+            console.log('Generated Query:', JSON.stringify(query, null, 2));
         }
 
         const events = await Event.find(query).sort({ createdAt: -1 });
