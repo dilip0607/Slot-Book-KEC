@@ -13,14 +13,31 @@ exports.getAllEvents = async (req, res) => {
     try {
         let query = {};
 
-        // If not admin, filter by target audience
+        // If not admin, filter by target audience, gender, and batch
         if (req.user.role !== 'ADMIN') {
+            const userBatch = req.user.batch; // e.g. "2027"
             query = {
-                $or: [
-                    { targetAudience: 'Common' },
-                    { targetAudience: req.user.studentType }
-                ],
-                isActive: true
+                $and: [
+                    { isActive: true },
+                    {
+                        $or: [
+                            { targetAudience: 'Common' },
+                            { targetAudience: req.user.studentType }
+                        ]
+                    },
+                    {
+                        $or: [
+                            { targetGender: 'Common' },
+                            { targetGender: req.user.gender }
+                        ]
+                    },
+                    {
+                        $or: [
+                            { targetBatch: 'All' },
+                            { targetBatch: userBatch }
+                        ]
+                    }
+                ]
             };
         }
 
@@ -51,7 +68,7 @@ exports.getEventStatus = async (req, res) => {
 // @route   POST /api/events
 // @access  Private/Admin
 exports.createEvent = async (req, res) => {
-    const { title, description, targetAudience, slots } = req.body;
+    const { title, description, targetAudience, targetGender, targetBatch, slots } = req.body;
 
     try {
         // Basic validation
@@ -63,6 +80,8 @@ exports.createEvent = async (req, res) => {
             title,
             description,
             targetAudience,
+            targetGender,
+            targetBatch,
             slots: slots.map(s => ({
                 ...s,
                 startTime: new Date(s.startTime), // Full Date Object
@@ -98,7 +117,9 @@ exports.deleteEvent = async (req, res) => {
                     department: reg.user.department,
                     year: reg.user.year,
                     mobile: reg.user.mobile,
-                    studentType: reg.user.studentType
+                    studentType: reg.user.studentType,
+                    gender: reg.user.gender,
+                    batch: reg.user.batch
                 } : {}, // Handle case if user is null
                 slotId: reg.slotId,
                 registeredAt: reg.registeredAt
@@ -110,6 +131,8 @@ exports.deleteEvent = async (req, res) => {
                 title: event.title,
                 description: event.description,
                 targetAudience: event.targetAudience,
+                targetGender: event.targetGender,
+                targetBatch: event.targetBatch,
                 slots: event.slots,
                 registrations: archivedRegistrations
             });
@@ -118,7 +141,7 @@ exports.deleteEvent = async (req, res) => {
             await Registration.deleteMany({ event: event._id });
             await event.deleteOne();
 
-            res.json({ message: 'Event moved to archive (retained for 30 days)' });
+            res.json({ message: 'Event moved to Recycle Bin (retained for 30 days)' });
         } else {
             res.status(404).json({ message: 'Event not found' });
         }
@@ -143,7 +166,6 @@ exports.register = async (req, res) => {
     const session = await mongoose.startSession();
 
     try {
-        let transactionResult = null;
         let finalRegistration = null;
         let eventInfo = null;
         let slotInfo = null;
@@ -159,10 +181,21 @@ exports.register = async (req, res) => {
                 throw new Error('Event is inactive');
             }
 
-            // Eligibility check
+            // Eligibility check - Student Type
             if (event.targetAudience !== 'Common' && event.targetAudience !== req.user.studentType) {
                 throw new Error(`This event is only for ${event.targetAudience}s.`);
             }
+
+            // Eligibility check - Gender
+            if (event.targetGender !== 'Common' && event.targetGender !== req.user.gender) {
+                throw new Error(`This event is only for ${event.targetGender} students.`);
+            }
+
+            // Eligibility check - Batch
+            if (event.targetBatch !== 'All' && event.targetBatch !== req.user.batch) {
+                throw new Error(`This event is only for batch ${event.targetBatch}.`);
+            }
+
 
             // 2. Check overlap: "One slot per event"
             const existingRegistration = await Registration.findOne({ user: userId, event: eventId }).session(session);
@@ -225,8 +258,19 @@ exports.register = async (req, res) => {
 
             // Check if FULL (optional: notify admin)
             if (slotInfo.bookedSlots >= slotInfo.totalSlots) {
-                // Admin notification logic here
-                // console.log(`Slot ${slotInfo._id} for event ${eventInfo.title} is now FULL.`);
+                // Send email to admin
+                // Assuming fixed admin email or env var. Using a placeholder or first admin found? 
+                // For now, let's use the env var EMAIL_USER or hardcoded admin email if available.
+                // Requirement: "Automatically send an email notification to admin."
+                const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER; // Fallback
+                if (adminEmail) {
+                    await emailService.sendSlotFullEmail(
+                        adminEmail,
+                        eventInfo.title,
+                        new Date(slotInfo.startTime).toLocaleDateString(),
+                        new Date(slotInfo.startTime).toLocaleTimeString()
+                    );
+                }
             }
         } catch (emailErr) {
             console.error('Email notification failed:', emailErr);
@@ -252,7 +296,7 @@ exports.register = async (req, res) => {
 exports.getEventRegistrations = async (req, res) => {
     try {
         const registrations = await Registration.find({ event: req.params.id })
-            .populate('user', 'name email')
+            .populate('user', 'name email rollNumber department year studentType gender batch')
             .sort({ registeredAt: 1 });
 
         res.json(registrations);
@@ -283,20 +327,22 @@ exports.exportEventRegistrations = async (req, res) => {
 
             const slot = event.slots ? event.slots.find(s => s._id.toString() === reg.slotId.toString()) : null;
 
+            // Strict Columns as requested
+            // Event name, Event date, Event target audience, Slot details, Student registration details
+            // Exclude: Gender target, Batch target
             return {
-                'Event Title': event.title,
-                'Event Target Audience': event.targetAudience || 'N/A',
-                'Slot Time': slot ? new Date(slot.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A',
-                'User Name': user.name,
+                'Event Name': event.title,
+                'Event Date': slot ? new Date(slot.startTime).toLocaleDateString('en-IN') : 'N/A', // Assuming slot start time is the date
+                'Target Audience': event.targetAudience, // Day Scholar / Hosteller / Common
+                'Slot Time': slot ? new Date(slot.startTime).toLocaleTimeString('en-IN') : 'N/A',
+                'Student Name': user.name,
                 'Roll No': user.rollNumber || 'N/A',
                 'Department': user.department || 'N/A',
-                'Section': user.section || 'N/A',
                 'Year': user.year || 'N/A',
-                'Mobile': user.mobile || 'N/A',
                 'Student Type': user.studentType || 'N/A',
-                'Gender': user.gender || 'N/A',
-                'User Email': user.email,
-                'Registration Date': new Date(reg.registeredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                'Batch': user.batch || 'N/A',
+                'Mobile': user.mobile || 'N/A',
+                'Email': user.email
             };
         }).filter(item => item !== null); // Filter out corrupted entries
 
@@ -372,9 +418,6 @@ exports.getMyRegistrations = async (req, res) => {
 // @desc    Cancel a registration
 // @route   DELETE /api/registrations/:id
 // @access  Private
-// @desc    Cancel a registration
-// @route   DELETE /api/registrations/:id
-// @access  Private
 exports.cancelRegistration = async (req, res) => {
     try {
         const registration = await Registration.findById(req.params.id);
@@ -389,7 +432,7 @@ exports.cancelRegistration = async (req, res) => {
         }
 
         const eventId = registration.event;
-        const slotId = registration.slotId; // NOW AVAILABLE
+        const slotId = registration.slotId;
 
         // Atomic update: remove registration and decrement slot
         await registration.deleteOne();
@@ -417,5 +460,74 @@ exports.getArchivedEvents = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error fetching archived events' });
+    }
+};
+
+// @desc    Restore an event from archive
+// @route   POST /api/events/:id/restore
+// @access  Private/Admin
+exports.restoreEvent = async (req, res) => {
+    try {
+        const archivedEvent = await ArchivedEvent.findById(req.params.id);
+        if (!archivedEvent) {
+            return res.status(404).json({ message: 'Archived event not found' });
+        }
+
+        // Restore Event
+        const newEvent = new Event({
+            title: archivedEvent.title,
+            description: archivedEvent.description,
+            targetAudience: archivedEvent.targetAudience,
+            targetGender: archivedEvent.targetGender,
+            targetBatch: archivedEvent.targetBatch,
+            slots: archivedEvent.slots,
+            isActive: false // Restore as inactive initially
+        });
+        const savedEvent = await newEvent.save();
+
+        // Restore Registrations
+        if (archivedEvent.registrations && archivedEvent.registrations.length > 0) {
+            for (const r of archivedEvent.registrations) {
+                // Find user by email since we might not have ID if user was deleted (though unlikely)
+                // We stored embedded user data, but for registration table we need user _id
+                let user;
+                if (r.user.email) {
+                    user = await User.findOne({ email: r.user.email });
+                }
+
+                if (user) {
+                    await Registration.create({
+                        user: user._id,
+                        event: savedEvent._id,
+                        slotId: r.slotId,
+                        registeredAt: r.registeredAt || Date.now()
+                    });
+                }
+            }
+        }
+
+        await archivedEvent.deleteOne();
+        res.json({ message: 'Event restored successfully' });
+    } catch (error) {
+        console.error('Restore Error:', error);
+        res.status(500).json({ message: 'Server Error restoring event' });
+    }
+};
+
+// @desc    Permanently delete an event
+// @route   DELETE /api/events/archived/:id
+// @access  Private/Admin
+exports.permanentDeleteEvent = async (req, res) => {
+    try {
+        const archivedEvent = await ArchivedEvent.findById(req.params.id);
+        if (archivedEvent) {
+            await archivedEvent.deleteOne();
+            res.json({ message: 'Event permanently deleted' });
+        } else {
+            res.status(404).json({ message: 'Archived event not found' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
     }
 };

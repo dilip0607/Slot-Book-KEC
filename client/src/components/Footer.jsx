@@ -4,9 +4,11 @@ const Footer = () => {
     return (
         <footer className="bg-white border-t border-gray-200 mt-auto">
             <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-center items-center">
+                <div className="flex justify-center items-center text-center">
                     <p className="text-gray-500 text-sm font-medium">
-                        Developed by <span className="text-gray-900 font-bold">DILIP</span>
+                        Developed by <span className="text-sky-700 font-bold">Dilip B</span> & <span className="text-sky-700 font-bold">Hariram R</span>
+                        <br />
+                        <span className="text-xs text-gray-400">Department of Automobile Engineering</span>
                     </p>
                 </div>
             </div>

@@ -13,6 +13,17 @@ const eventSchema = new mongoose.Schema({
         enum: ['Hosteller', 'Day Scholar', 'Common'],
         required: true
     },
+    targetGender: {
+        type: String,
+        enum: ['Male', 'Female', 'Common'],
+        default: 'Common',
+        required: true
+    },
+    targetBatch: {
+        type: String,
+        default: 'All', // e.g. "2027", "2028" or "All"
+        required: true
+    },
     slots: [{
         startTime: {
             type: Date,

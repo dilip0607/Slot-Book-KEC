@@ -50,6 +50,10 @@ const userSchema = new mongoose.Schema({
         enum: ['Male', 'Female'],
         required: [true, 'Gender is required']
     },
+    batch: {
+        type: String,
+        required: [true, 'Batch is required (e.g., 2027)']
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -59,7 +63,9 @@ const userSchema = new mongoose.Schema({
         default: false
     },
     verificationToken: String,
-    verificationTokenExpire: Date
+    verificationTokenExpire: Date,
+    resetPasswordToken: String,
+    resetPasswordExpire: Date
 });
 
 // Encrypt password before saving

@@ -1,33 +1,33 @@
 const mongoose = require('mongoose');
 
 const archivedEventSchema = new mongoose.Schema({
-    originalEventId: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true
-    },
-    title: String,
+    originalEventId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    title: { type: String, required: true },
     description: String,
-    targetAudience: String,
-    slots: Array,
+    targetAudience: { type: String, required: true },
+    targetGender: { type: String, default: 'Common' },
+    targetBatch: { type: String, default: 'All' },
+    slots: [{
+        startTime: Date,
+        endTime: Date,
+        totalSlots: Number,
+        bookedSlots: Number
+    }],
     registrations: [{
-        originalRegistrationId: mongoose.Schema.Types.ObjectId,
         user: {
             name: String,
             email: String,
             rollNumber: String,
             department: String,
             year: String,
-            mobile: String,
-            studentType: String
+            studentType: String,
+            gender: String,
+            batch: String
         },
         slotId: mongoose.Schema.Types.ObjectId,
-        registeredAt: Date
+        bookedAt: Date
     }],
-    deletedAt: {
-        type: Date,
-        default: Date.now,
-        index: { expires: '30d' } // Automatically delete after 30 days
-    }
+    deletedAt: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('ArchivedEvent', archivedEventSchema);

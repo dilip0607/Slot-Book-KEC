@@ -86,6 +86,45 @@ const notifyAdminEventFull = async (adminEmail, eventTitle, totalSlots) => {
 };
 
 /**
+ * Notify admin when a specific slot is full
+ */
+const sendSlotFullEmail = async (adminEmail, eventName, date, time) => {
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+           <h2 style="color: #ef4444; text-align: center;">Slot Reached Full Capacity</h2>
+           <p>The slot for event <strong>${eventName}</strong> has reached maximum capacity.</p>
+           <p><strong>Date:</strong> ${date}</p>
+           <p><strong>Time:</strong> ${time}</p>
+        </div>
+    `;
+    return await sendEmailViaBrevo(adminEmail, `Alert: Slot Full - ${eventName}`, htmlContent);
+};
+
+/**
+ * Send password reset email
+ */
+const sendPasswordResetEmail = async (userEmail, token) => {
+    let baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+    baseUrl = baseUrl.replace(/\/$/, '');
+    // Frontend route for reset
+    const url = `${baseUrl}/reset-password/${token}`;
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+            <h2 style="color: #4f46e5; text-align: center;">Password Reset Request</h2>
+            <p>You requested a password reset. Click the link below to set a new password:</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${url}" style="background-color: #4f46e5; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+            </div>
+            <p>If you didn't request this, please ignore this email.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">This link expires in 10 minutes.</p>
+        </div>
+    `;
+    return await sendEmailViaBrevo(userEmail, 'Password Reset Request', htmlContent);
+};
+
+/**
  * Send email verification link to user
  */
 const sendVerificationEmail = async (userEmail, userName, verificationToken) => {
@@ -115,5 +154,7 @@ const sendVerificationEmail = async (userEmail, userName, verificationToken) => 
 module.exports = {
     sendBookingConfirmation,
     notifyAdminEventFull,
-    sendVerificationEmail
+    sendVerificationEmail,
+    sendSlotFullEmail,
+    sendPasswordResetEmail
 };

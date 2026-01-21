@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useModal } from '../context/ModalContext';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -14,20 +15,21 @@ const Register = () => {
         year: '',
         mobile: '',
         studentType: '',
-        gender: ''
+        studentType: '',
+        gender: '',
+        batch: ''
     });
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    // Removed local error/success states in favor of Modal
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const { register } = useAuth();
+    const { showModal } = useModal();
     const navigate = useNavigate();
 
-    const { name, email, password, confirmPassword, rollNumber, department, section, year, mobile, studentType, gender } = formData;
+    const { name, email, password, confirmPassword, rollNumber, department, section, year, mobile, studentType, gender, batch } = formData;
 
     const onChange = e => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
-        if (error) setError(''); // Clear global errors on type
     };
 
     const handleSubmit = async (e) => {
@@ -35,25 +37,25 @@ const Register = () => {
 
         // Basic Client Side Validation
         if (!email.endsWith('@kongu.edu')) {
-            setError('Please use your @kongu.edu email');
+            showModal({ type: 'error', message: 'Please use your @kongu.edu email' });
             return;
         }
 
 
         // Validation: Mandatory Fields
-        if (!gender || !department || !section || !year) {
-            setError('All fields are mandatory');
+        if (!gender || !department || !section || !year || !batch) {
+            showModal({ type: 'error', message: 'All fields are mandatory' });
             return;
         }
 
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{6,10}$/;
         if (!passwordRegex.test(password)) {
-            setError('Password must be 6-10 characters long, contain 1 uppercase, 1 lowercase, and 1 special character.');
+            showModal({ type: 'error', message: 'Password must be 6-10 characters long, contain 1 uppercase, 1 lowercase, and 1 special character.' });
             return;
         }
 
         if (password !== confirmPassword) {
-            setError('Passwords do not match');
+            showModal({ type: 'error', message: 'Passwords do not match' });
             return;
         }
 
@@ -63,14 +65,16 @@ const Register = () => {
         const res = await register(submissionData);
 
         if (res.success) {
-            setSuccess(res.message || 'Registration successful! Please check your email to verify your account.');
-            setError('');
+            showModal({
+                type: 'success',
+                message: res.message || 'Registration successful! Please check your email to verify your account.',
+                onConfirm: () => navigate('/login')
+            });
             setFormData({
-                name: '', email: '', password: '', confirmPassword: '', rollNumber: '', department: '', section: '', year: '', mobile: '', studentType: '', gender: ''
+                name: '', email: '', password: '', confirmPassword: '', rollNumber: '', department: '', section: '', year: '', mobile: '', studentType: '', gender: '', batch: ''
             });
         } else {
-            setError(res.message);
-            setSuccess('');
+            showModal({ type: 'error', message: res.message });
         }
     };
 
@@ -85,19 +89,7 @@ const Register = () => {
                         Fill in all details correctly to access your dashboard.
                     </p>
                 </div>
-                {error && (
-                    <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md">
-                        <p className="text-sm text-red-700">{error}</p>
-                    </div>
-                )}
-                {success && (
-                    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-md">
-                        <p className="text-sm text-green-700">{success}</p>
-                        <button onClick={() => navigate('/login')} className="mt-2 text-sm font-medium text-green-800 underline">
-                            Go to login
-                        </button>
-                    </div>
-                )}
+
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         {/* Name */}
@@ -132,6 +124,9 @@ const Register = () => {
                                 <option value="AIML">AIML</option>
                                 <option value="AUTO">AUTO</option>
                                 <option value="BSC">BSC</option>
+                                <option value="BS-CS">BS-CS</option>
+                                <option value="BS-IS">BS-IS</option>
+                                <option value="BS-SS">BS-SS</option>
                                 <option value="CHEM">CHEM</option>
                                 <option value="CIVIL">CIVIL</option>
                                 <option value="CSD">CSD</option>
@@ -144,6 +139,7 @@ const Register = () => {
                                 <option value="MBA">MBA</option>
                                 <option value="MCA">MCA</option>
                                 <option value="MECH">MECH</option>
+                                <option value="MSC">MSC</option>
                                 <option value="MTS">MTS</option>
                             </select>
                         </div>
@@ -192,6 +188,18 @@ const Register = () => {
                                 <option value="">Select Gender</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
+                            </select>
+                        </div>
+
+                        {/* Batch (New Field) */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Batch</label>
+                            <select name="batch" required className="select-field" value={batch} onChange={onChange}>
+                                <option value="">Ending of an academic year</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
                             </select>
                         </div>
 

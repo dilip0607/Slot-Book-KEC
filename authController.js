@@ -22,7 +22,8 @@ exports.register = async (req, res) => {
         year,
         mobile,
         studentType,
-        gender
+        gender,
+        batch
     } = req.body;
 
     try {
@@ -42,7 +43,7 @@ exports.register = async (req, res) => {
 
 
         // Validation: Mandatory Fields
-        if (!gender || !department || !section || !year) {
+        if (!gender || !department || !section || !year || !batch) {
             return res.status(400).json({ message: 'All fields are mandatory' });
         }
 
@@ -57,7 +58,7 @@ exports.register = async (req, res) => {
         }
 
         // Validation: Department (Optional stricter check if needed, but schema handles type mostly)
-        const allowedDepts = ['AIDS', 'AIML', 'AUTO', 'BSC', 'CHEM', 'CIVIL', 'CSD', 'CSE', 'ECE', 'EEE', 'EIE', 'FT', 'IT', 'MBA', 'MCA', 'MECH', 'MTS'];
+        const allowedDepts = ['AIDS', 'AIML', 'AUTO', 'BSC', 'BS-CS', 'BS-IS', 'BS-SS', 'CHEM', 'CIVIL', 'CSD', 'CSE', 'ECE', 'EEE', 'EIE', 'FT', 'IT', 'MBA', 'MCA', 'MECH', 'MSC', 'MTS'];
         if (!allowedDepts.includes(department)) {
             return res.status(400).json({ message: 'Invalid department selection' });
         }
@@ -101,6 +102,7 @@ exports.register = async (req, res) => {
             mobile,
             studentType,
             gender,
+            batch,
             verificationToken,
             verificationTokenExpire
         });
@@ -181,5 +183,80 @@ exports.verifyEmail = async (req, res) => {
         res.redirect(`${baseUrl}/login?verified=true`);
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Forgot Password
+// @route   POST /api/auth/forgot-password
+// @access  Public
+exports.forgotPassword = async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Get Reset Token
+        const resetToken = crypto.randomBytes(20).toString('hex');
+
+        // Hash token and set to resetPasswordToken field
+        user.resetPasswordToken = crypto
+            .createHash('sha256')
+            .update(resetToken)
+            .digest('hex');
+
+        // Set expire
+        user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+        await user.save();
+
+        try {
+            await emailService.sendPasswordResetEmail(user.email, resetToken);
+            res.status(200).json({ message: 'Email sent' });
+        } catch (err) {
+            console.error(err);
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save();
+            return res.status(500).json({ message: 'Email could not be sent' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// @desc    Reset Password
+// @route   PUT /api/auth/reset-password/:token
+// @access  Public
+exports.resetPassword = async (req, res) => {
+    // Get hashed token
+    const resetPasswordToken = crypto
+        .createHash('sha256')
+        .update(req.params.token)
+        .digest('hex');
+
+    try {
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid token' });
+        }
+
+        // Set new password
+        user.password = req.body.password;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+
+        await user.save();
+
+        res.status(200).json({ message: 'Password updated success' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
     }
 };

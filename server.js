@@ -22,6 +22,8 @@ app.use(bodyParser.json());
 // API Routes
 app.post('/api/auth/register', authController.register);
 app.post('/api/auth/login', authController.login);
+app.post('/api/auth/forgot-password', authController.forgotPassword);
+app.put('/api/auth/reset-password/:token', authController.resetPassword);
 app.get('/api/auth/verify/:token', authController.verifyEmail);
 
 // Public/User Routes
@@ -34,7 +36,8 @@ const registrationLimiter = rateLimit({
 });
 
 app.get('/api/events', protect, controllers.getAllEvents);
-app.get('/api/events/archived', protect, admin, controllers.getArchivedEvents); // Specific route first
+app.get('/api/events/archived', protect, admin, controllers.getArchivedEvents);
+app.post('/api/events/:id/restore', protect, admin, controllers.restoreEvent); // Restore Route
 app.get('/api/events/:id', protect, controllers.getEventStatus);
 app.post('/api/register', protect, registrationLimiter, controllers.register);
 
@@ -45,6 +48,7 @@ app.delete('/api/registrations/:id', protect, controllers.cancelRegistration);
 app.post('/api/events', protect, admin, controllers.createEvent);
 app.put('/api/events/:id', protect, admin, controllers.updateEvent);
 app.delete('/api/events/:id', protect, admin, controllers.deleteEvent);
+app.delete('/api/events/archived/:id', protect, admin, controllers.permanentDeleteEvent); // Perm Delete
 app.get('/api/events/:id/registrations', protect, admin, controllers.getEventRegistrations);
 app.get('/api/events/:id/export', protect, admin, controllers.exportEventRegistrations);
 

@@ -1,36 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useModal } from '../context/ModalContext';
+import axios from 'axios';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+    const [showForgot, setShowForgot] = useState(false);
+
+    // Removed local error/success states in favor of Modal
+    // const [error, setError] = useState('');
+    // const [success, setSuccess] = useState('');
+
     const { login } = useAuth();
+    const { showModal } = useModal();
     const navigate = useNavigate();
     const location = useLocation();
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         if (params.get('verified') === 'true') {
-            setSuccess('Email verified successfully! You can now log in.');
+            showModal({ type: 'success', message: 'Email verified successfully! You can now log in.' });
         }
-    }, [location]);
+    }, [location, showModal]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         const res = await login(email, password);
         if (res.success) {
-            navigate('/');
+            if (res.isAdmin) {
+                navigate('/admin');
+            } else {
+                navigate('/dashboard');
+            }
         } else {
-            setError(res.message);
+            showModal({ type: 'error', message: res.message });
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        if (!forgotPasswordEmail) {
+            showModal({ type: 'info', message: 'Please enter your email first.' });
+            return;
+        }
+        try {
+            await axios.post('/api/auth/forgot-password', { email: forgotPasswordEmail });
+            showModal({ type: 'success', message: 'Password reset link sent to your email.' });
+            setForgotPasswordEmail('');
+            setShowForgot(false);
+        } catch (err) {
+            showModal({ type: 'error', message: err.response?.data?.message || 'Failed to send email' });
         }
     };
 
     return (
         <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8 card">
+            <div className="max-w-md w-full space-y-8 card relative">
                 <div className="text-center">
                     <h2 className="mt-2 text-3xl font-extrabold text-sky-600 tracking-tight">
                         Welcome Back
@@ -39,34 +66,7 @@ const Login = () => {
                         Sign in to access your dashboard
                     </p>
                 </div>
-                {error && (
-                    <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md">
-                        <div className="flex">
-                            <div className="flex-shrink-0">
-                                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                            <div className="ml-3">
-                                <p className="text-sm text-red-700">{error}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                {success && (
-                    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-md">
-                        <div className="flex">
-                            <div className="flex-shrink-0">
-                                <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 12.586l7.293-7.293a1 1 0 011.414 1.414l-8 8z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                            <div className="ml-3">
-                                <p className="text-sm text-green-700">{success}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
@@ -95,12 +95,46 @@ const Login = () => {
                         </div>
                     </div>
 
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                            <button type="button" onClick={() => setShowForgot(true)} className="font-medium text-sky-600 hover:text-sky-500">
+                                Forgot your password?
+                            </button>
+                        </div>
+                    </div>
+
                     <div>
                         <button type="submit" className="w-full btn-primary flex justify-center py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                             Sign in
                         </button>
                     </div>
+
+                    <div className="text-center mt-4">
+                        <p className="text-sm text-gray-600">
+                            Don't have an account? <Link to="/register" className="font-medium text-sky-600 hover:text-sky-500">Register here</Link>
+                        </p>
+                    </div>
                 </form>
+
+                {/* Forgot Password Overlay */}
+                {showForgot && (
+                    <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-xl p-8 flex flex-col justify-center items-center z-10 animate-fade-in border border-sky-100">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">Reset Password</h3>
+                        <p className="text-sm text-gray-500 mb-6 text-center">Enter your email address and we'll send you a link to reset your password.</p>
+                        <input
+                            type="email"
+                            className="input-field mb-4 w-full"
+                            placeholder="Enter your email"
+                            value={forgotPasswordEmail}
+                            onChange={e => setForgotPasswordEmail(e.target.value)}
+                        />
+                        <div className="flex gap-3 w-full">
+                            <button onClick={() => setShowForgot(false)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">Cancel</button>
+                            <button onClick={handleForgotPassword} className="flex-1 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 font-medium transition-colors shadow-md">Send Link</button>
+                        </div>
+                    </div>
+                )}
+
             </div>
         </div>
     );

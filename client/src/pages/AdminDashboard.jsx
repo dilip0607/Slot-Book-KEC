@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useModal } from '../context/ModalContext';
 
 const TimePicker = ({ value, onChange, className }) => {
     let hour = '12', minute = '00', period = 'AM';
@@ -52,12 +53,15 @@ const TimePicker = ({ value, onChange, className }) => {
 
 const AdminDashboard = () => {
     const { user } = useAuth();
+    const { showModal } = useModal();
     const [events, setEvents] = useState([]);
 
     // Form States
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [targetAudience, setTargetAudience] = useState('Common');
+    const [targetGender, setTargetGender] = useState('Common');
+    const [targetBatch, setTargetBatch] = useState('All');
     // State for slots now needs separate date, start time, end time
     const [slots, setSlots] = useState([{ date: '', startTime: '', endTime: '', totalSlots: '' }]);
 
@@ -131,14 +135,14 @@ const AdminDashboard = () => {
 
         // Basic validation
         if (slots.some(s => !s.date || !s.startTime || !s.endTime || !s.totalSlots)) {
-            setError('Please fill in all slot details (Date, Start Time, End Time, Capacity).');
+            showModal({ type: 'error', message: 'Please fill in all slot details (Date, Start Time, End Time, Capacity).' });
             return;
         }
 
         // Validate End Time > Start Time
         for (const slot of slots) {
             if (slot.startTime >= slot.endTime) {
-                setError('End Time must be after Start Time for all slots.');
+                showModal({ type: 'error', message: 'End Time must be after Start Time for all slots.' });
                 return;
             }
         }
@@ -149,6 +153,8 @@ const AdminDashboard = () => {
                     title,
                     description,
                     targetAudience,
+                    targetGender,
+                    targetBatch,
                     slots: slots.map(s => {
                         // Construct Date objects in Browser's Local Time (IST)
                         const start = new Date(`${s.date}T${s.startTime}`);
@@ -163,11 +169,11 @@ const AdminDashboard = () => {
                 },
                 { headers: { Authorization: `Bearer ${user.token}` } }
             );
-            setSuccess('Event created successfully');
+            showModal({ type: 'success', message: 'Event created successfully' });
             resetForm();
             fetchEvents();
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to create event');
+            showModal({ type: 'error', message: err.response?.data?.message || 'Failed to create event' });
         }
     };
 
@@ -175,32 +181,32 @@ const AdminDashboard = () => {
         setTitle('');
         setDescription('');
         setTargetAudience('Common');
+        setTargetGender('Common');
+        setTargetBatch('All');
         setSlots([{ date: '', startTime: '', endTime: '', totalSlots: '' }]);
         setIsEditing(false);
         setEditingEventId(null);
     };
 
     const handleDeleteEvent = async (id) => {
-        if (!window.confirm('Are you sure you want to move this event to the Recycle Bin? It will be retained for 30 days.')) return;
-        try {
-            const res = await axios.delete(`/api/events/${id}`, {
-                headers: { Authorization: `Bearer ${user.token}` }
-            });
-            // Update UI state
-            setSuccess('Event moved to Recycle Bin. It will be permanently deleted after 30 days.');
-            setError('');
-
-            // Refresh both lists to ensure data consistency
-            fetchEvents();
-            fetchArchivedEvents();
-
-            // Scroll to top to show success message
-            window.scrollTo(0, 0);
-        } catch (err) {
-            console.error(err);
-            setError('Failed to move event to Recycle Bin');
-            setSuccess('');
-        }
+        showModal({
+            type: 'confirm',
+            title: 'Delete Event?',
+            message: 'Are you sure you want to move this event to the Recycle Bin? It will be retained for 30 days.',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`/api/events/${id}`, {
+                        headers: { Authorization: `Bearer ${user.token}` }
+                    });
+                    showModal({ type: 'success', message: 'Event moved to Recycle Bin.' });
+                    fetchEvents();
+                    fetchArchivedEvents();
+                } catch (err) {
+                    console.error(err);
+                    showModal({ type: 'error', message: 'Failed to move event to Recycle Bin' });
+                }
+            }
+        });
     };
 
     const handleViewRegistrations = async (eventId) => {
@@ -218,6 +224,45 @@ const AdminDashboard = () => {
         } catch (err) {
             console.error(err);
         }
+    };
+
+    const handleRestoreEvent = async (id) => {
+        showModal({
+            type: 'confirm',
+            title: 'Restore Event?',
+            message: 'Are you sure you want to restore this event? It will be moved back to Active Events.',
+            onConfirm: async () => {
+                try {
+                    await axios.post(`/api/events/${id}/restore`, {}, {
+                        headers: { Authorization: `Bearer ${user.token}` }
+                    });
+                    showModal({ type: 'success', message: 'Event restored successfully.' });
+                    fetchEvents();
+                    fetchArchivedEvents();
+                } catch (err) {
+                    showModal({ type: 'error', message: 'Failed to restore event.' });
+                }
+            }
+        });
+    };
+
+    const handlePermanentDelete = async (id) => {
+        showModal({
+            type: 'confirm',
+            title: 'Permanent Delete?',
+            message: 'This action cannot be undone. Do you want to permanently delete this event?',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`/api/events/archived/${id}`, {
+                        headers: { Authorization: `Bearer ${user.token}` }
+                    });
+                    showModal({ type: 'success', message: 'Event permanently deleted.' });
+                    fetchArchivedEvents();
+                } catch (err) {
+                    showModal({ type: 'error', message: 'Failed to delete event.' });
+                }
+            }
+        });
     };
 
     const filteredEvents = events.filter(event =>
@@ -290,6 +335,24 @@ const AdminDashboard = () => {
                                         <option value="Common">Common (All)</option>
                                         <option value="Hosteller">Hosteller Only</option>
                                         <option value="Day Scholar">Day Scholar Only</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Target Gender</label>
+                                    <select value={targetGender} onChange={(e) => setTargetGender(e.target.value)} className="select-field">
+                                        <option value="Common">Common (All)</option>
+                                        <option value="Male">Male Only</option>
+                                        <option value="Female">Female Only</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Target Batch</label>
+                                    <select value={targetBatch} onChange={(e) => setTargetBatch(e.target.value)} className="select-field">
+                                        <option value="All">All Batches</option>
+                                        <option value="2027">2027</option>
+                                        <option value="2028">2028</option>
+                                        <option value="2029">2029</option>
+                                        <option value="2030">2030</option>
                                     </select>
                                 </div>
                             </div>
@@ -435,16 +498,40 @@ const AdminDashboard = () => {
                                         <div>
                                             <h3 className="text-xl font-bold text-gray-800">{event.title}</h3>
                                             <p className="text-sm text-gray-500 mt-1">Archived on: {new Date(event.deletedAt).toLocaleDateString()}</p>
-                                            <span className="inline-block mt-2 bg-gray-200 text-xs px-2 py-1 rounded text-gray-700">
-                                                For: {event.targetAudience}
-                                            </span>
+                                            <div className="flex gap-2 mt-2">
+                                                <span className="inline-block bg-gray-200 text-xs px-2 py-1 rounded text-gray-700">
+                                                    For: {event.targetAudience}
+                                                </span>
+                                                <span className="inline-block bg-gray-200 text-xs px-2 py-1 rounded text-gray-700">
+                                                    Gender: {event.targetGender || 'Common'}
+                                                </span>
+                                                <span className="inline-block bg-gray-200 text-xs px-2 py-1 rounded text-gray-700">
+                                                    Batch: {event.targetBatch || 'All'}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <button
-                                            onClick={() => setExpandedArchivedEvent(expandedArchivedEvent === event._id ? null : event._id)}
-                                            className="text-sky-600 hover:text-sky-800 font-semibold text-sm"
-                                        >
-                                            {expandedArchivedEvent === event._id ? 'Hide Details' : 'View Details'}
-                                        </button>
+                                        <div className="flex flex-col items-end space-y-2">
+                                            <button
+                                                onClick={() => setExpandedArchivedEvent(expandedArchivedEvent === event._id ? null : event._id)}
+                                                className="text-sky-600 hover:text-sky-800 font-semibold text-sm"
+                                            >
+                                                {expandedArchivedEvent === event._id ? 'Hide Details' : 'View Details'}
+                                            </button>
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => handleRestoreEvent(event._id)}
+                                                    className="px-3 py-1 bg-green-100 text-green-700 rounded text-xs font-bold hover:bg-green-200"
+                                                >
+                                                    Restore
+                                                </button>
+                                                <button
+                                                    onClick={() => handlePermanentDelete(event._id)}
+                                                    className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200"
+                                                >
+                                                    Delete Forever
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {expandedArchivedEvent === event._id && (
