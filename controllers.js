@@ -319,49 +319,116 @@ exports.getEventRegistrations = async (req, res) => {
 // @access  Private/Admin
 exports.exportEventRegistrations = async (req, res) => {
     try {
-        const registrations = await Registration.find({ event: req.params.id })
-            .populate('user') // Get all user fields since we need many of them
-            .populate('event', 'title slots') // Need title AND slots
+        const eventId = req.params.id;
+        // Fetch event first to ensure we have slot definitions even if empty
+        const event = await Event.findById(eventId);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        // Fetch registrations
+        const registrations = await Registration.find({ event: eventId })
+            .populate('user')
             .sort({ registeredAt: 1 });
 
         if (registrations.length === 0) {
             return res.status(404).json({ message: 'No registrations found to export' });
         }
 
-        const data = registrations.map(reg => {
-            const user = reg.user;
-            const event = reg.event;
-
-            if (!user || !event) return null; // Skip if data is corrupted
-
-            const slot = event.slots ? event.slots.find(s => s._id.toString() === reg.slotId.toString()) : null;
-
-            // Strict Columns as requested
-            // Event name, Event date, Event target audience, Slot details, Student registration details
-            // Exclude: Gender target, Batch target
-            return {
-                'Event Name': event.title,
-                'Event Date': slot ? new Date(slot.startTime).toLocaleDateString('en-IN') : 'N/A', // Assuming slot start time is the date
-                'Target Audience': event.targetAudience, // Day Scholar / Hosteller / Common
-                'Slot Time': slot ? new Date(slot.startTime).toLocaleTimeString('en-IN') : 'N/A',
-                'Student Name': user.name,
-                'Roll No': user.rollNumber || 'N/A',
-                'Department': user.department || 'N/A',
-                'Year': user.year || 'N/A',
-                'Student Type': user.studentType || 'N/A',
-                'Batch': user.batch || 'N/A',
-                'Mobile': user.mobile || 'N/A',
-                'Email': user.email
-            };
-        }).filter(item => item !== null); // Filter out corrupted entries
-
         const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Registrations');
+
+        // Helper to format time for Column (HH:MM AM/PM – HH:MM AM/PM)
+        const formatTimeColumn = (date) => {
+            return new Date(date).toLocaleTimeString('en-IN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }).toUpperCase();
+        };
+
+        // Helper to format time for Sheet Name (Compact: HH:MM-HH:MM)
+        const formatTimeSheet = (date) => {
+            return new Date(date).toLocaleTimeString('en-IN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false // 24h format is more compact and standard for filenames/sheet names usually, 
+                // but user example "09:00-11:00" could be either. 
+                // I'll use 24h to save space and match the "09:00" look.
+            });
+        };
+
+        // Group registrations by slotId
+        // We iterate over event.slots to ensure EVERY slot gets a sheet
+        event.slots.forEach((slot, index) => {
+            const slotIdStr = slot._id.toString();
+
+            // Filter registrations for this slot
+            const slotRegs = registrations.filter(r => r.slotId && r.slotId.toString() === slotIdStr);
+
+            // Prepare Data Rows
+            const sheetData = slotRegs.map(reg => {
+                const user = reg.user;
+                if (!user) return null;
+
+                return {
+                    'Event Title': event.title,
+                    'Event Date': new Date(slot.startTime).toLocaleDateString('en-IN'),
+                    'Slot Time': `${formatTimeColumn(slot.startTime)} – ${formatTimeColumn(slot.endTime)}`,
+                    'User Name': user.name,
+                    'Roll No': user.rollNumber || 'N/A',
+                    'Department': user.department || 'N/A',
+                    'Section': user.section || 'N/A',
+                    'Year': user.year || 'N/A',
+                    'Mobile': user.mobile || 'N/A',
+                    'Student Type': user.studentType || 'N/A',
+                    'Gender': user.gender || 'N/A',
+                    'User Email': user.email,
+                    'Registration Date': new Date(reg.registeredAt).toLocaleString('en-IN')
+                };
+            }).filter(item => item !== null);
+
+            // Create Worksheet
+            let worksheet;
+            if (sheetData.length > 0) {
+                worksheet = XLSX.utils.json_to_sheet(sheetData);
+            } else {
+                // Empty sheet with headers
+                worksheet = XLSX.utils.json_to_sheet([]);
+                XLSX.utils.sheet_add_aoa(worksheet, [[
+                    'Event Title', 'Event Date', 'Slot Time', 'User Name', 'Roll No',
+                    'Department', 'Section', 'Year', 'Mobile', 'Student Type',
+                    'Gender', 'User Email', 'Registration Date'
+                ]], { origin: "A1" });
+            }
+
+            // Generate Sheet Name
+            // Structure: "EventTitle - Slot X (Start-End)"
+            // Limit: 31 chars
+            const timeRange = `${formatTimeSheet(slot.startTime)}-${formatTimeSheet(slot.endTime)}`; // e.g., "09:00-11:00"
+            const suffix = ` - Slot ${index + 1} (${timeRange})`; // e.g., " - Slot 1 (09:00-11:00)" ~ 21-23 chars
+
+            // Truncate title if needed
+            const maxTitleLen = 31 - suffix.length;
+            let safeTitle = event.title;
+            if (safeTitle.length > maxTitleLen) {
+                safeTitle = safeTitle.substring(0, Math.max(0, maxTitleLen));
+            }
+
+            const sheetName = `${safeTitle}${suffix}`;
+
+            // Append sheet
+            // Handle duplicate sheet names if any (unlikely with index, but good practice)
+            // But here index ensures uniqueness format-wise.
+            try {
+                XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+            } catch (e) {
+                // Fallback if name is invalid or duplicate (very unlikely)
+                XLSX.utils.book_append_sheet(workbook, worksheet, `Slot ${index + 1}`);
+            }
+        });
 
         const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-        const fileName = `Registrations_${registrations[0].event.title.replace(/\s+/g, '_')}.xlsx`;
+        const fileName = `Registrations_${event.title.replace(/\s+/g, '_')}.xlsx`;
 
         res.set({
             'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -371,7 +438,7 @@ exports.exportEventRegistrations = async (req, res) => {
 
         res.send(buffer);
     } catch (error) {
-        console.error(error);
+        console.error('Export Error:', error);
         res.status(500).json({ message: 'Server Error during Excel export' });
     }
 };
