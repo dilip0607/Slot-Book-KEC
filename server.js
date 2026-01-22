@@ -21,6 +21,11 @@ app.use(cors());
 app.use(compression());
 app.use(bodyParser.json());
 
+// Health Check Endpoint (Critical for Render)
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // API Routes
 app.post('/api/auth/register', authController.register);
 app.post('/api/auth/login', authController.login);
@@ -68,6 +73,24 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
-app.listen(PORT, () => {
+// Global Error Handling
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+    console.error(err.name, err.message);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+    console.error('UNHANDLED REJECTION! 💥 Shutting down...');
+    console.error(err.name, err.message);
+    // server.close(() => {
+    //     process.exit(1);
+    // });
+    // For reliability, we might want to log and keep running if possible, 
+    // but standard practice is restart. Render will auto-restart if we exit.
+    process.exit(1);
+});
+
+const server = app.listen(PORT, () => {
     console.log(`v1.0.4: Server running on port ${PORT}`);
 });

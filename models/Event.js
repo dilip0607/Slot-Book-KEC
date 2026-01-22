@@ -52,7 +52,7 @@ const eventSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-eventSchema.index({ isActive: 1 });
+eventSchema.index({ isActive: 1, targetAudience: 1, targetGender: 1 }); // Compound for Dashboard
 eventSchema.index({ targetAudience: 1 });
 eventSchema.index({ targetGender: 1 });
 eventSchema.index({ targetBatch: 1 });

@@ -1,47 +1,97 @@
-const axios = require('axios');
+const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 
 dotenv.config();
 
-/**
- * Shared function to send email via Brevo API
- */
-const sendEmailViaBrevo = async (toEmail, subject, htmlContent) => {
-    try {
-        const apiKey = process.env.EMAIL_API_KEY;
-        const senderEmail = process.env.EMAIL_USER;
+// Configuration
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS; // App Password for Gmail
+const EMAIL_RATE_LIMIT_MS = 2000; // 2 seconds delay between emails
+const MAX_RETRIES = 3;
 
-        if (!apiKey) {
-            console.error('❌ EMAIL_API_KEY is missing in environment variables');
-            return;
+// Check credentials but don't crash
+if (!EMAIL_USER || !EMAIL_PASS) {
+    console.error('⚠️ EMAIL_USER or EMAIL_PASS missing. Email sending will fail.');
+}
+
+// Nodemailer Transporter
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: EMAIL_USER,
+        pass: EMAIL_PASS
+    }
+});
+
+/**
+ * Simple In-Memory Email Queue
+ */
+class EmailQueue {
+    constructor() {
+        this.queue = [];
+        this.isProcessing = false;
+    }
+
+    enqueue(mailOptions) {
+        this.queue.push({ ...mailOptions, retries: 0 });
+        this.processQueue();
+    }
+
+    async processQueue() {
+        if (this.isProcessing || this.queue.length === 0) return;
+
+        this.isProcessing = true;
+        const currentEmail = this.queue.shift();
+
+        try {
+            await transporter.sendMail(currentEmail);
+            console.log(`✅ Email sent to ${currentEmail.to}`);
+        } catch (error) {
+            console.error(`❌ Failed to send email to ${currentEmail.to}:`, error.message);
+
+            // Retry logic
+            if (currentEmail.retries < MAX_RETRIES) {
+                currentEmail.retries++;
+                console.log(`...Re-queuing (Attempt ${currentEmail.retries + 1}/${MAX_RETRIES + 1})`);
+                this.queue.push(currentEmail);
+            } else {
+                console.error(`💀 Email discarded after ${MAX_RETRIES} retries.`);
+            }
         }
 
-        const data = {
-            sender: { email: senderEmail, name: "KEC Slot Booking" },
-            to: [{ email: toEmail }],
-            subject: subject,
-            htmlContent: htmlContent
-        };
-
-        const response = await axios.post('https://api.brevo.com/v3/smtp/email', data, {
-            headers: {
-                'accept': 'application/json',
-                'api-key': apiKey,
-                'content-type': 'application/json'
-            }
-        });
-
-        console.log(`✅ Email sent via Brevo API to ${toEmail}. Message ID: ${response.data.messageId}`);
-        return response.data;
-    } catch (error) {
-        console.error('❌ Error sending email via Brevo:', error.response?.data || error.message);
-        throw error; // Re-throw so controller knows it failed
+        // Throttle next email
+        setTimeout(() => {
+            this.isProcessing = false;
+            this.processQueue();
+        }, EMAIL_RATE_LIMIT_MS);
     }
-};
+}
+
+const emailQueue = new EmailQueue();
 
 /**
- * Send booking confirmation email to user
+ * Shared function to queue email
  */
+const queueEmail = (to, subject, htmlContent) => {
+    if (!EMAIL_USER || !EMAIL_PASS) {
+        console.warn('Skipping email (No credentials):', subject);
+        return;
+    }
+
+    const mailOptions = {
+        from: `KEC Slot Booking <${EMAIL_USER}>`,
+        to: to,
+        subject: subject,
+        html: htmlContent
+    };
+
+    emailQueue.enqueue(mailOptions);
+};
+
+// ==========================
+// EMAIL TEMPLATE FUNCTIONS
+// ==========================
+
 const sendBookingConfirmation = async (userEmail, userName, eventTitle, eventDate, startTime, endTime) => {
     const formattedDate = new Date(eventDate).toLocaleDateString('en-IN', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'
@@ -68,12 +118,11 @@ const sendBookingConfirmation = async (userEmail, userName, eventTitle, eventDat
             <p style="font-size: 12px; color: #6b7280; text-align: center;">This is an automated email from KEC Slot Booking System.</p>
         </div>
     `;
-    return await sendEmailViaBrevo(userEmail, 'Slot Booking Confirmed!', htmlContent);
+
+    // Fire and forget (queued)
+    queueEmail(userEmail, 'Slot Booking Confirmed!', htmlContent);
 };
 
-/**
- * Notify admin when an event is full
- */
 const notifyAdminEventFull = async (adminEmail, eventTitle, totalSlots) => {
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -83,12 +132,9 @@ const notifyAdminEventFull = async (adminEmail, eventTitle, totalSlots) => {
            <p>No more registrations will be accepted for this event unless someone cancels.</p>
         </div>
     `;
-    return await sendEmailViaBrevo(adminEmail, `Alert: Event Full - ${eventTitle}`, htmlContent);
+    queueEmail(adminEmail, `Alert: Event Full - ${eventTitle}`, htmlContent);
 };
 
-/**
- * Notify admin when a specific slot is full
- */
 const sendSlotFullEmail = async (adminEmail, eventName, date, time) => {
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -98,16 +144,12 @@ const sendSlotFullEmail = async (adminEmail, eventName, date, time) => {
            <p><strong>Time:</strong> ${time}</p>
         </div>
     `;
-    return await sendEmailViaBrevo(adminEmail, `Alert: Slot Full - ${eventName}`, htmlContent);
+    queueEmail(adminEmail, `Alert: Slot Full - ${eventName}`, htmlContent);
 };
 
-/**
- * Send password reset email
- */
 const sendPasswordResetEmail = async (userEmail, token) => {
     let baseUrl = process.env.BASE_URL || 'http://localhost:3001';
     baseUrl = baseUrl.replace(/\/$/, '');
-    // Frontend route for reset
     const url = `${baseUrl}/reset-password/${token}`;
 
     const htmlContent = `
@@ -122,17 +164,12 @@ const sendPasswordResetEmail = async (userEmail, token) => {
             <p style="font-size: 12px; color: #6b7280; text-align: center;">This link expires in 10 minutes.</p>
         </div>
     `;
-    return await sendEmailViaBrevo(userEmail, 'Password Reset Request', htmlContent);
+    queueEmail(userEmail, 'Password Reset Request', htmlContent);
 };
 
-/**
- * Send email verification link to user
- */
 const sendVerificationEmail = async (userEmail, userName, verificationToken) => {
     let baseUrl = process.env.BASE_URL || 'http://localhost:3001';
-    // Remove trailing slash if present to avoid double slashes
     baseUrl = baseUrl.replace(/\/$/, '');
-
     const verificationUrl = `${baseUrl}/api/auth/verify/${verificationToken}`;
 
     const htmlContent = `
@@ -149,7 +186,7 @@ const sendVerificationEmail = async (userEmail, userName, verificationToken) => 
             <p style="font-size: 12px; color: #6b7280; text-align: center;">This link will expire in 24 hours.</p>
         </div>
     `;
-    return await sendEmailViaBrevo(userEmail, 'Verify Your Email - KEC Slot Booking', htmlContent);
+    queueEmail(userEmail, 'Verify Your Email - KEC Slot Booking', htmlContent);
 };
 
 module.exports = {

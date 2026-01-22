@@ -262,8 +262,10 @@ exports.register = async (req, res) => {
             registration: finalRegistration
         });
 
-        // 7. Trigger Notification Email (Async - outside transaction)
-        // Optimization: Do NOT await this. Let it run in background to speed up response.
+        // 7. Trigger Notification Email (Async - Fire and Forget)
+        // The email service now handles queuing internally.
+        const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+
         emailService.sendBookingConfirmation(
             req.user.email,
             req.user.name,
@@ -271,21 +273,17 @@ exports.register = async (req, res) => {
             slotInfo.startTime,
             slotInfo.startTime,
             slotInfo.endTime
-        ).then(async () => {
-            // Check if FULL (optional: notify admin)
-            if (slotInfo.bookedSlots >= slotInfo.totalSlots) {
-                const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
-                if (adminEmail) {
-                    await emailService.sendSlotFullEmail(
-                        adminEmail,
-                        eventInfo.title,
-                        new Date(slotInfo.startTime).toLocaleDateString(),
-                        new Date(slotInfo.startTime).toLocaleTimeString()
-                    );
-                }
-            }
-        }).catch(err => console.error('Email notification failed in background:', err));
+        );
 
+        // Check if FULL (optional: notify admin)
+        if (slotInfo.bookedSlots >= slotInfo.totalSlots && adminEmail) {
+            emailService.sendSlotFullEmail(
+                adminEmail,
+                eventInfo.title,
+                new Date(slotInfo.startTime).toLocaleDateString(),
+                new Date(slotInfo.startTime).toLocaleTimeString()
+            );
+        }
     } catch (error) {
         await session.endSession();
         console.error('Transaction Aborted:', error.message);
@@ -317,16 +315,17 @@ exports.getEventRegistrations = async (req, res) => {
 // @desc    Export registrations to Excel
 // @route   GET /api/events/:id/export
 // @access  Private/Admin
+// @desc    Export registrations to Excel (Streamed)
+// @route   GET /api/events/:id/export
+// @access  Private/Admin
 exports.exportEventRegistrations = async (req, res) => {
     try {
         const eventId = req.params.id;
-        // Fetch event first to ensure we have slot definitions even if empty
         const event = await Event.findById(eventId);
         if (!event) {
             return res.status(404).json({ message: 'Event not found' });
         }
 
-        // Fetch registrations
         const registrations = await Registration.find({ event: eventId })
             .populate('user')
             .sort({ registeredAt: 1 });
@@ -335,111 +334,90 @@ exports.exportEventRegistrations = async (req, res) => {
             return res.status(404).json({ message: 'No registrations found to export' });
         }
 
-        const workbook = XLSX.utils.book_new();
+        // Set Headers for Download
+        const fileName = `Registrations_${event.title.replace(/\s+/g, '_')}.xlsx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
-        // Helper to format time for Column (HH:MM AM/PM – HH:MM AM/PM)
+        const ExcelJS = require('exceljs');
+        const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
+
         const formatTimeColumn = (date) => {
             return new Date(date).toLocaleTimeString('en-IN', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
+                hour: '2-digit', minute: '2-digit', hour12: true
             }).toUpperCase();
         };
 
-        // Helper to format time for Sheet Name (Compact: HH:MM-HH:MM)
         const formatTimeSheet = (date) => {
             return new Date(date).toLocaleTimeString('en-IN', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false // 24h format is more compact and standard for filenames/sheet names usually, 
-                // but user example "09:00-11:00" could be either. 
-                // I'll use 24h to save space and match the "09:00" look.
+                hour: '2-digit', minute: '2-digit', hour12: false
             });
         };
 
-        // Group registrations by slotId
-        // We iterate over event.slots to ensure EVERY slot gets a sheet
-        event.slots.forEach((slot, index) => {
+        // Iterate slots and create sheets
+        for (let i = 0; i < event.slots.length; i++) {
+            const slot = event.slots[i];
             const slotIdStr = slot._id.toString();
 
-            // Filter registrations for this slot
+            // Filter regs for this slot
             const slotRegs = registrations.filter(r => r.slotId && r.slotId.toString() === slotIdStr);
 
-            // Prepare Data Rows
-            const sheetData = slotRegs.map(reg => {
+            // Create Sheet Name
+            const index = i + 1;
+            const timeRange = `${formatTimeSheet(slot.startTime)}-${formatTimeSheet(slot.endTime)}`;
+            let sheetName = `${event.title.substring(0, 10)}.. - S${index}`; // Short & Safe
+
+            const worksheet = workbook.addWorksheet(sheetName);
+
+            // Add Columns
+            worksheet.columns = [
+                { header: 'Event Title', key: 'title', width: 20 },
+                { header: 'Event Date', key: 'date', width: 15 },
+                { header: 'Slot Time', key: 'time', width: 25 },
+                { header: 'User Name', key: 'name', width: 20 },
+                { header: 'Roll No', key: 'roll', width: 15 },
+                { header: 'Department', key: 'dept', width: 15 },
+                { header: 'Section', key: 'section', width: 10 },
+                { header: 'Year', key: 'year', width: 10 },
+                { header: 'Mobile', key: 'mobile', width: 15 },
+                { header: 'Student Type', key: 'type', width: 15 },
+                { header: 'Gender', key: 'gender', width: 10 },
+                { header: 'Email', key: 'email', width: 25 },
+                { header: 'Registration Date', key: 'regDate', width: 20 },
+            ];
+
+            // Add Rows
+            slotRegs.forEach(reg => {
                 const user = reg.user;
-                if (!user) return null;
+                if (user) {
+                    worksheet.addRow({
+                        title: event.title,
+                        date: new Date(slot.startTime).toLocaleDateString('en-IN'),
+                        time: `${formatTimeColumn(slot.startTime)} – ${formatTimeColumn(slot.endTime)}`,
+                        name: user.name,
+                        roll: user.rollNumber || 'N/A',
+                        dept: user.department || 'N/A',
+                        section: user.section || 'N/A',
+                        year: user.year || 'N/A',
+                        mobile: user.mobile || 'N/A',
+                        type: user.studentType || 'N/A',
+                        gender: user.gender || 'N/A',
+                        email: user.email,
+                        regDate: new Date(reg.registeredAt).toLocaleString('en-IN')
+                    });
+                }
+            });
 
-                return {
-                    'Event Title': event.title,
-                    'Event Date': new Date(slot.startTime).toLocaleDateString('en-IN'),
-                    'Slot Time': `${formatTimeColumn(slot.startTime)} – ${formatTimeColumn(slot.endTime)}`,
-                    'User Name': user.name,
-                    'Roll No': user.rollNumber || 'N/A',
-                    'Department': user.department || 'N/A',
-                    'Section': user.section || 'N/A',
-                    'Year': user.year || 'N/A',
-                    'Mobile': user.mobile || 'N/A',
-                    'Student Type': user.studentType || 'N/A',
-                    'Gender': user.gender || 'N/A',
-                    'User Email': user.email,
-                    'Registration Date': new Date(reg.registeredAt).toLocaleString('en-IN')
-                };
-            }).filter(item => item !== null);
+            worksheet.commit();
+        }
 
-            // Create Worksheet
-            let worksheet;
-            if (sheetData.length > 0) {
-                worksheet = XLSX.utils.json_to_sheet(sheetData);
-            } else {
-                // Empty sheet with headers
-                worksheet = XLSX.utils.json_to_sheet([]);
-                XLSX.utils.sheet_add_aoa(worksheet, [[
-                    'Event Title', 'Event Date', 'Slot Time', 'User Name', 'Roll No',
-                    'Department', 'Section', 'Year', 'Mobile', 'Student Type',
-                    'Gender', 'User Email', 'Registration Date'
-                ]], { origin: "A1" });
-            }
-
-            // Generate Sheet Name
-            // Structure: "EventTitle - Slot X (Start-End)"
-            // Limit: 31 chars
-            const timeRange = `${formatTimeSheet(slot.startTime)}-${formatTimeSheet(slot.endTime)}`; // e.g., "09:00-11:00"
-            const suffix = ` - Slot ${index + 1} (${timeRange})`; // e.g., " - Slot 1 (09:00-11:00)" ~ 21-23 chars
-
-            // Truncate title if needed
-            const maxTitleLen = 31 - suffix.length;
-            let safeTitle = event.title;
-            if (safeTitle.length > maxTitleLen) {
-                safeTitle = safeTitle.substring(0, Math.max(0, maxTitleLen));
-            }
-
-            const sheetName = `${safeTitle}${suffix}`;
-
-            // Append sheet
-            // Handle duplicate sheet names if any (unlikely with index, but good practice)
-            // But here index ensures uniqueness format-wise.
-            try {
-                XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-            } catch (e) {
-                // Fallback if name is invalid or duplicate (very unlikely)
-                XLSX.utils.book_append_sheet(workbook, worksheet, `Slot ${index + 1}`);
-            }
-        });
-
-        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-        const fileName = `Registrations_${event.title.replace(/\s+/g, '_')}.xlsx`;
-
-        res.set({
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition': `attachment; filename="${fileName}"`,
-            'Content-Length': buffer.length
-        });
-
-        res.send(buffer);
+        await workbook.commit();
+        // res.end() is called automatically by commit() when using stream
     } catch (error) {
         console.error('Export Error:', error);
-        res.status(500).json({ message: 'Server Error during Excel export' });
+        if (!res.headersSent) {
+            res.status(500).json({ message: 'Server Error during Excel export' });
+        }
     }
 };
 

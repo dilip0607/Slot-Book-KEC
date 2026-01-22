@@ -23,5 +23,9 @@ const registrationSchema = new mongoose.Schema({
 
 // Prevent duplicate registration for same event by same user
 registrationSchema.index({ user: 1, event: 1 }, { unique: true });
+// Optimize Admin Views
+registrationSchema.index({ event: 1, registeredAt: 1 });
+// Optimize User Dashboard
+registrationSchema.index({ user: 1, registeredAt: -1 });
 
 module.exports = mongoose.model('Registration', registrationSchema);
