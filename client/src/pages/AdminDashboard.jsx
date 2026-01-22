@@ -385,8 +385,8 @@ const AdminDashboard = () => {
                             </div>
 
                             {/* VISIBILITY SECTION */}
-                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                                <label className="block text-sm font-bold text-blue-800 mb-3 uppercase tracking-wide">Event Visibility (IST)</label>
+                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Event Visibility Configuration (IST)</label>
                                 <div className="flex flex-col md:flex-row gap-4">
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Date</label>
@@ -407,7 +407,7 @@ const AdminDashboard = () => {
                                         <TimePicker value={visEndTime} onChange={setVisEndTime} className="w-full" />
                                     </div>
                                 </div>
-                                <p className="text-xs text-blue-600 mt-2">
+                                <p className="text-xs text-gray-500 mt-2">
                                     * Event will be visible to students ONLY between these times (IST).
                                 </p>
                             </div>
