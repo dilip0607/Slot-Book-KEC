@@ -65,6 +65,11 @@ const AdminDashboard = () => {
     // State for slots now needs separate date, start time, end time
     const [slots, setSlots] = useState([{ date: '', startTime: '', endTime: '', totalSlots: '' }]);
 
+    // Visibility States (IST)
+    const [visDate, setVisDate] = useState('');
+    const [visStartTime, setVisStartTime] = useState('09:00');
+    const [visEndTime, setVisEndTime] = useState('17:00');
+
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [expandedEvent, setExpandedEvent] = useState(null);
@@ -133,6 +138,12 @@ const AdminDashboard = () => {
         }
     };
 
+    // Helper to create a UTC Date object from local string components
+    // e.g. "2025-01-29", "10:00" -> Date("2025-01-29T10:00:00.000Z")
+    const createISTDate = (dateStr, timeStr) => {
+        return new Date(`${dateStr}T${timeStr}:00.000Z`).toISOString();
+    };
+
     const handleCreateEvent = async (e) => {
         e.preventDefault();
         setError('');
@@ -141,6 +152,11 @@ const AdminDashboard = () => {
         // Basic validation
         if (slots.some(s => !s.date || !s.startTime || !s.endTime || !s.totalSlots)) {
             showModal({ type: 'error', message: 'Please fill in all slot details (Date, Start Time, End Time, Capacity).' });
+            return;
+        }
+
+        if (!visDate || !visStartTime || !visEndTime) {
+            showModal({ type: 'error', message: 'Please fill in Event Visibility details.' });
             return;
         }
 
@@ -161,15 +177,14 @@ const AdminDashboard = () => {
                     targetAudience,
                     targetGender,
                     targetBatch,
+                    visibleFrom: createISTDate(visDate, visStartTime),
+                    visibleUntil: createISTDate(visDate, visEndTime),
                     slots: slots.map(s => {
-                        // Construct Date objects in Browser's Local Time (IST)
-                        const start = new Date(`${s.date}T${s.startTime}`);
-                        const end = new Date(`${s.date}T${s.endTime}`);
                         return {
                             totalSlots: Number(s.totalSlots),
-                            // Send UTC ISO strings to backend
-                            startTime: start.toISOString(),
-                            endTime: end.toISOString()
+                            // Send UTC ISO strings representing IST time
+                            startTime: createISTDate(s.date, s.startTime),
+                            endTime: createISTDate(s.date, s.endTime)
                         };
                     })
                 },
@@ -192,6 +207,9 @@ const AdminDashboard = () => {
         setTargetGender('Common');
         setTargetBatch('All');
         setSlots([{ date: '', startTime: '', endTime: '', totalSlots: '' }]);
+        setVisDate('');
+        setVisStartTime('09:00');
+        setVisEndTime('17:00');
         setIsEditing(false);
         setEditingEventId(null);
     };
@@ -324,7 +342,7 @@ const AdminDashboard = () => {
                         <div className="border-b border-gray-100 pb-5 mb-6 flex justify-between items-center">
                             <div>
                                 <h2 className="text-2xl font-bold text-gray-800">Create New Event</h2>
-                                <p className="text-gray-500 mt-1">Configure event details.</p>
+                                <p className="text-gray-500 mt-1">Configure event details and IST visibility.</p>
                             </div>
                         </div>
 
@@ -333,6 +351,7 @@ const AdminDashboard = () => {
 
                         <form onSubmit={handleCreateEvent} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* ... [Existing Fields] ... */}
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Event Title</label>
                                     <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="input-field" placeholder="e.g. End Semester Exam" />
@@ -365,13 +384,41 @@ const AdminDashboard = () => {
                                 </div>
                             </div>
 
+                            {/* VISIBILITY SECTION */}
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                <label className="block text-sm font-bold text-blue-800 mb-3 uppercase tracking-wide">Event Visibility (IST)</label>
+                                <div className="flex flex-col md:flex-row gap-4">
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Date</label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={visDate}
+                                            onChange={(e) => setVisDate(e.target.value)}
+                                            className="input-field w-full cursor-pointer"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs text-gray-500 mb-1">Visible From (IST)</label>
+                                        <TimePicker value={visStartTime} onChange={setVisStartTime} className="w-full" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs text-gray-500 mb-1">Visible Until (IST)</label>
+                                        <TimePicker value={visEndTime} onChange={setVisEndTime} className="w-full" />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-blue-600 mt-2">
+                                    * Event will be visible to students ONLY between these times (IST).
+                                </p>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
                                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="input-field" rows="2" placeholder="Brief details about the event..."></textarea>
                             </div>
 
                             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Time Slots Configuration</label>
+                                <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Time Slots Configuration (IST)</label>
                                 {slots.map((slot, index) => (
                                     <div key={index} className="flex flex-col md:flex-row gap-4 mb-4 items-end">
                                         <div className="flex-1">

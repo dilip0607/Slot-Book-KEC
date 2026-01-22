@@ -154,16 +154,35 @@ const UserDashboard = () => {
                                     const isFull = slot.bookedSlots >= slot.totalSlots;
                                     const percent = Math.min((slot.bookedSlots / slot.totalSlots) * 100, 100);
 
+                                    // Custom formatter to read UTC components as Local Time without checking browser timezone
+                                    const formatISTTime = (isoString) => {
+                                        const d = new Date(isoString);
+                                        let hours = d.getUTCHours();
+                                        const minutes = d.getUTCMinutes().toString().padStart(2, '0');
+                                        const ampm = hours >= 12 ? 'PM' : 'AM';
+                                        hours = hours % 12;
+                                        hours = hours ? hours : 12;
+                                        return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+                                    };
+
+                                    const formatISTDate = (isoString) => {
+                                        const d = new Date(isoString);
+                                        const day = d.getUTCDate();
+                                        const month = d.toLocaleString('en-IN', { month: 'short', timeZone: 'UTC' });
+                                        // Or just getUTCMonth and map it. toLocaleString with UTC timezone is safe.
+                                        const year = d.getUTCFullYear();
+                                        // Get weekday
+                                        const weekday = d.toLocaleString('en-IN', { weekday: 'short', timeZone: 'UTC' });
+                                        return `${weekday}, ${day} ${month} ${year}`;
+                                    };
+
                                     return (
                                         <div key={slot._id} className={`border rounded-lg p-4 relative ${isFull ? 'bg-gray-50 border-gray-200' : 'bg-white border-sky-100 hover:border-sky-300'}`}>
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="text-sm font-medium text-gray-900">
-                                                    {new Date(slot.startTime).toLocaleString('en-IN', {
-                                                        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
-                                                    })}
+                                                    {formatISTDate(slot.startTime)}
                                                     <div className="text-xs text-gray-500 mt-1">
-                                                        {new Date(slot.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} -
-                                                        {new Date(slot.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                        {formatISTTime(slot.startTime)} - {formatISTTime(slot.endTime)} (IST)
                                                     </div>
                                                 </div>
                                                 {isFull ? (

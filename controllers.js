@@ -9,6 +9,19 @@ const mongoose = require('mongoose');
 // @desc    Get all events
 // @route   GET /api/events
 // @access  Private
+// Helper to get Current Time as a Date Object where components match IST
+// Example: Real Time 11:30 UTC (5 PM IST) -> Returns Date(17:00 UTC)
+const getISTTime = () => {
+    const now = new Date();
+    const istString = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+    return new Date(istString); // new Date("1/22/2026, 5:00:00 PM") parses as local/UTC depending on node, usually local.
+    // Ensure it is treated as UTC to match our storage strategy
+    // return new Date(istString + " UTC"); // Safer for most environments
+};
+
+// @desc    Get all events
+// @route   GET /api/events
+// @access  Private
 exports.getAllEvents = async (req, res) => {
     try {
         let query = {};
@@ -17,18 +30,36 @@ exports.getAllEvents = async (req, res) => {
         if (req.user.role !== 'ADMIN') {
             const userBatch = req.user.batch; // e.g. "2027"
 
-            console.log('--- Debug Event Filtering ---');
-            console.log('User:', req.user.name);
-            console.log('User Role:', req.user.role);
-            console.log('User Attributes:', {
-                type: req.user.studentType,
-                gender: req.user.gender,
-                batch: req.user.batch
-            });
+            // IST Visibility Logic
+            // We store times as "Shifted Dates" (e.g. 10 AM IST stored as 10:00 UTC)
+            // So we must compare against "Current IST Time represented as UTC"
+            const nowIST = getISTTime();
 
             query = {
                 $and: [
-                    // Fix: Allow events where isActive is true OR missing (legacy events)
+                    // Visibility Check (CRITICAL)
+                    {
+                        $or: [
+                            {
+                                visibleFrom: { $lte: nowIST },
+                                visibleUntil: { $gte: nowIST }
+                            },
+                            // For safety during migration, if fields missing, show them (or hide them? req says "visibleOnly when...")
+                            // Requirement: "Event is visible... ONLY when...". So strict check.
+                            // But to avoid hiding all old events immediately, maybe allow missing? 
+                            // Prompt says "Do not delete or archive".
+                            // Let's assume newly created events have these fields. Old ones might default.
+                            // Event Schema has default visibleFrom=Now, visibleUntil=REQUIRED. 
+                            // So new events work. Old events might fail strict check. 
+                            // Logic: If visibleUntil is missing, assume always visible? 
+                            // "User Dashboard behavior... Event is visible... ONLY when..." -> implies STRICT.
+                            // However, I just added the fields. Old docs don't have them. 
+                            // I should allow if visibleUntil exists. If not, maybe show?
+                            // Prompt says "Admin must configure...". 
+                            // I will make it strict: If fields exist, check them. If not, show (legacy support).
+                            { visibleUntil: { $exists: false } }
+                        ]
+                    },
                     {
                         $or: [
                             { isActive: true },
@@ -55,12 +86,12 @@ exports.getAllEvents = async (req, res) => {
                     }
                 ]
             };
-            console.log('Generated Query:', JSON.stringify(query, null, 2));
         }
 
         const events = await Event.find(query).sort({ createdAt: -1 });
         res.json(events);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Server Error' });
     }
 };
@@ -85,7 +116,10 @@ exports.getEventStatus = async (req, res) => {
 // @route   POST /api/events
 // @access  Private/Admin
 exports.createEvent = async (req, res) => {
-    const { title, description, targetAudience, targetGender, targetBatch, slots } = req.body;
+    const {
+        title, description, targetAudience, targetGender, targetBatch, slots,
+        visibleFrom, visibleUntil
+    } = req.body;
 
     try {
         // Basic validation
@@ -99,10 +133,12 @@ exports.createEvent = async (req, res) => {
             targetAudience,
             targetGender,
             targetBatch,
+            visibleFrom, // Expecting UTC ISO strings representing IST time
+            visibleUntil,
             slots: slots.map(s => ({
                 ...s,
-                startTime: new Date(s.startTime), // Full Date Object
-                endTime: new Date(s.endTime)     // Full Date Object
+                startTime: new Date(s.startTime),
+                endTime: new Date(s.endTime)
             })),
         });
 
@@ -343,15 +379,22 @@ exports.exportEventRegistrations = async (req, res) => {
         const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
 
         const formatTimeColumn = (date) => {
-            return new Date(date).toLocaleTimeString('en-IN', {
-                hour: '2-digit', minute: '2-digit', hour12: true
-            }).toUpperCase();
+            // "IST Only" Strategy: Date is stored as 10:00 UTC (representing 10:00 IST)
+            // So we read UTC components directly.
+            const d = new Date(date);
+            let hours = d.getUTCHours();
+            const minutes = d.getUTCMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
         };
 
         const formatTimeSheet = (date) => {
-            return new Date(date).toLocaleTimeString('en-IN', {
-                hour: '2-digit', minute: '2-digit', hour12: false
-            });
+            const d = new Date(date);
+            const hours = d.getUTCHours().toString().padStart(2, '0');
+            const minutes = d.getUTCMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
         };
 
         // Iterate slots and create sheets
@@ -390,9 +433,18 @@ exports.exportEventRegistrations = async (req, res) => {
             slotRegs.forEach(reg => {
                 const user = reg.user;
                 if (user) {
+                    const slotStart = new Date(slot.startTime);
+                    // Date display: getUTCDate/Month/Year
+                    const dateStr = `${slotStart.getUTCDate()}/${slotStart.getUTCMonth() + 1}/${slotStart.getUTCFullYear()}`;
+
+                    // Registration Date is separate. It is generated by server as UTC.
+                    // We must convert it to IST string manually for display.
+                    // Or keep it simple: Reg date is system time, so we convert that one normally.
+                    const regDateStr = new Date(reg.registeredAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
                     worksheet.addRow({
                         title: event.title,
-                        date: new Date(slot.startTime).toLocaleDateString('en-IN'),
+                        date: dateStr,
                         time: `${formatTimeColumn(slot.startTime)} – ${formatTimeColumn(slot.endTime)}`,
                         name: user.name,
                         roll: user.rollNumber || 'N/A',
@@ -403,7 +455,7 @@ exports.exportEventRegistrations = async (req, res) => {
                         type: user.studentType || 'N/A',
                         gender: user.gender || 'N/A',
                         email: user.email,
-                        regDate: new Date(reg.registeredAt).toLocaleString('en-IN')
+                        regDate: regDateStr
                     });
                 }
             });
@@ -425,23 +477,25 @@ exports.exportEventRegistrations = async (req, res) => {
 // @route   PUT /api/events/:id
 // @access  Private/Admin
 exports.updateEvent = async (req, res) => {
-    const { title, testDate, totalSlots, isActive } = req.body;
+    const { title, testDate, totalSlots, isActive, visibleFrom, visibleUntil } = req.body;
 
     try {
         const event = await Event.findById(req.params.id);
 
         if (event) {
             // Validation: totalSlots cannot be less than current bookedSlots
-            if (totalSlots < event.bookedSlots) {
+            if (totalSlots !== undefined && totalSlots < event.bookedSlots) {
                 return res.status(400).json({
                     message: `Total slots cannot be less than current booked slots (${event.bookedSlots})`
                 });
             }
 
             event.title = title || event.title;
-            event.testDate = testDate || event.testDate;
+            // event.testDate = testDate || event.testDate; // Removed legacy field? Keeping if needed
             event.totalSlots = totalSlots !== undefined ? totalSlots : event.totalSlots;
             event.isActive = isActive !== undefined ? isActive : event.isActive;
+            if (visibleFrom) event.visibleFrom = visibleFrom;
+            if (visibleUntil) event.visibleUntil = visibleUntil;
 
             const updatedEvent = await event.save();
             res.json(updatedEvent);

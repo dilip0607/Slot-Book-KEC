@@ -15,7 +15,7 @@ const Register = () => {
         year: '',
         mobile: '',
         studentType: '',
-        studentType: '',
+
         gender: '',
         batch: ''
     });
