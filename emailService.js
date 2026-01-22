@@ -4,29 +4,57 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // Configuration
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS; // App Password for Gmail
-const EMAIL_RATE_LIMIT_MS = 2000; // 2 seconds delay between emails
+const EMAIL_CONFIG = {
+    primary: {
+        user: process.env.EMAIL_USER_1 || process.env.EMAIL_USER, // Backwards compatibility
+        pass: process.env.EMAIL_PASS_1 || process.env.EMAIL_PASS,
+        limit: 500, // Daily limit (approx for free Gmail)
+        count: 0,
+        lastReset: Date.now()
+    },
+    secondary: {
+        user: process.env.EMAIL_USER_2,
+        pass: process.env.EMAIL_PASS_2,
+        limit: 500,
+        count: 0,
+        lastReset: Date.now()
+    }
+};
+
+const RATE_LIMIT_MS = 2000; // 2 seconds delay between emails
 const MAX_RETRIES = 3;
 
-// Check credentials but don't crash
-if (!EMAIL_USER || !EMAIL_PASS) {
-    console.error('⚠️ EMAIL_USER or EMAIL_PASS missing. Email sending will fail.');
-}
-
-// Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: EMAIL_USER,
-        pass: EMAIL_PASS
+// Reset counters every 24 hours
+const resetCountersIfNeeded = (senderConfig) => {
+    const oneDay = 24 * 60 * 60 * 1000;
+    if (Date.now() - senderConfig.lastReset > oneDay) {
+        senderConfig.count = 0;
+        senderConfig.lastReset = Date.now();
+        console.log(`🔄 Reset daily email limit for ${senderConfig.user}`);
     }
-});
+};
+
+// Create Transporters
+const createTransporter = (user, pass) => {
+    if (!user || !pass) return null;
+    return nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass }
+    });
+};
+
+const transporters = {
+    primary: createTransporter(EMAIL_CONFIG.primary.user, EMAIL_CONFIG.primary.pass),
+    secondary: createTransporter(EMAIL_CONFIG.secondary.user, EMAIL_CONFIG.secondary.pass)
+};
+
+if (!transporters.primary) console.warn('⚠️ Primary Email Sender not configured.');
+if (!transporters.secondary) console.warn('⚠️ Secondary Email Sender not configured.');
 
 /**
- * Simple In-Memory Email Queue
+ * Dual Email Queue with Failover
  */
-class EmailQueue {
+class DualEmailQueue {
     constructor() {
         this.queue = [];
         this.isProcessing = false;
@@ -41,45 +69,101 @@ class EmailQueue {
         if (this.isProcessing || this.queue.length === 0) return;
 
         this.isProcessing = true;
-        const currentEmail = this.queue.shift();
+        const task = this.queue.shift(); // Get first task
+
+        let sender = 'primary';
+
+        resetCountersIfNeeded(EMAIL_CONFIG.primary);
+        resetCountersIfNeeded(EMAIL_CONFIG.secondary);
+
+        // Logic to choose sender
+        // 1. If Primary is not configured or over limit -> Switch to Secondary
+        if (!transporters.primary || EMAIL_CONFIG.primary.count >= EMAIL_CONFIG.primary.limit) {
+            sender = 'secondary';
+        }
+
+        // 2. If Secondary is CHOSEN but not configured or over limit
+        if (sender === 'secondary' && (!transporters.secondary || EMAIL_CONFIG.secondary.count >= EMAIL_CONFIG.secondary.limit)) {
+            console.error('⛔ CRITICAL: Both email senders reached daily limit or are unconfigured.');
+            // Drop the email or maybe requeue with very long delay? 
+            // For now, logged and dropped to avoid infinite loops/spam.
+            this.handleCompletion();
+            return;
+        }
 
         try {
-            await transporter.sendMail(currentEmail);
-            console.log(`✅ Email sent to ${currentEmail.to}`);
+            await this.attemptSend(task, sender);
         } catch (error) {
-            console.error(`❌ Failed to send email to ${currentEmail.to}:`, error.message);
+            console.warn(`⚠️ Failed sending via ${sender}: ${error.message}`);
 
-            // Retry logic
-            if (currentEmail.retries < MAX_RETRIES) {
-                currentEmail.retries++;
-                console.log(`...Re-queuing (Attempt ${currentEmail.retries + 1}/${MAX_RETRIES + 1})`);
-                this.queue.push(currentEmail);
+            // Failover Logic: If we tried primary and it failed, try secondary.
+            if (sender === 'primary' && transporters.secondary && EMAIL_CONFIG.secondary.count < EMAIL_CONFIG.secondary.limit) {
+                console.log(`🔀 Switching to secondary sender...`);
+                try {
+                    await this.attemptSend(task, 'secondary');
+                } catch (failoverError) {
+                    console.error(`❌ Failover also failed: ${failoverError.message}`);
+                    this.handleRetry(task);
+                }
             } else {
-                console.error(`💀 Email discarded after ${MAX_RETRIES} retries.`);
+                // If we were already on secondary, or secondary is not available -> Retry later
+                console.error(`❌ No failover available.`);
+                this.handleRetry(task);
             }
         }
 
-        // Throttle next email
+        this.handleCompletion();
+    }
+
+    async attemptSend(task, senderKey) {
+        const transporter = transporters[senderKey];
+        const config = EMAIL_CONFIG[senderKey];
+
+        if (!transporter) throw new Error(`${senderKey} transporter not initialized`);
+
+        // Override 'from' to match the actual sender to avoid spam flags
+        const mailOptions = {
+            ...task,
+            from: `KEC Slot Booking <${config.user}>`
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        config.count++;
+        console.log(`✅ Email sent via ${senderKey} (${config.count}/${config.limit}) to ${task.to}`);
+        return info;
+    }
+
+    handleRetry(task) {
+        if (task.retries < MAX_RETRIES) {
+            task.retries++;
+            console.log(`...Re-queuing (Attempt ${task.retries + 1}/${MAX_RETRIES + 1})`);
+            this.queue.push(task);
+        } else {
+            console.error(`💀 Email discarded after ${MAX_RETRIES} retries.`);
+        }
+    }
+
+    handleCompletion() {
         setTimeout(() => {
             this.isProcessing = false;
             this.processQueue();
-        }, EMAIL_RATE_LIMIT_MS);
+        }, RATE_LIMIT_MS);
     }
 }
 
-const emailQueue = new EmailQueue();
+const emailQueue = new DualEmailQueue();
 
 /**
  * Shared function to queue email
  */
 const queueEmail = (to, subject, htmlContent) => {
-    if (!EMAIL_USER || !EMAIL_PASS) {
+    // Basic validation
+    if (!EMAIL_CONFIG.primary.user && !EMAIL_CONFIG.secondary.user) {
         console.warn('Skipping email (No credentials):', subject);
         return;
     }
 
     const mailOptions = {
-        from: `KEC Slot Booking <${EMAIL_USER}>`,
         to: to,
         subject: subject,
         html: htmlContent
@@ -119,7 +203,6 @@ const sendBookingConfirmation = async (userEmail, userName, eventTitle, eventDat
         </div>
     `;
 
-    // Fire and forget (queued)
     queueEmail(userEmail, 'Slot Booking Confirmed!', htmlContent);
 };
 
