@@ -432,7 +432,7 @@ const AdminDashboard = () => {
                                             />
                                         </div>
                                         <div className="w-full md:w-32">
-                                            <label className="block text-xs text-gray-500 mb-1">Start Time</label>
+                                            <label className="block text-xs text-gray-500 mb-1">Start Time (IST)</label>
                                             <TimePicker
                                                 value={slot.startTime}
                                                 onChange={(val) => handleSlotChange(index, 'startTime', val)}
@@ -440,7 +440,7 @@ const AdminDashboard = () => {
                                             />
                                         </div>
                                         <div className="w-full md:w-32">
-                                            <label className="block text-xs text-gray-500 mb-1">End Time</label>
+                                            <label className="block text-xs text-gray-500 mb-1">End Time (IST)</label>
                                             <TimePicker
                                                 value={slot.endTime}
                                                 onChange={(val) => handleSlotChange(index, 'endTime', val)}
