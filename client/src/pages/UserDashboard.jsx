@@ -116,10 +116,10 @@ const UserDashboard = () => {
                                         <span className="font-semibold">Slot Time:</span> {slot ?
                                             <div>
                                                 <span className="block text-gray-700 font-medium">
-                                                    {new Date(slot.startTime).toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                                    {new Date(slot.startTime).toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })}
                                                 </span>
                                                 <span className="block">
-                                                    {new Date(slot.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} - {new Date(slot.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                    {new Date(slot.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })} - {new Date(slot.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
                                                 </span>
                                             </div>
                                             : 'N/A'}
@@ -154,26 +154,24 @@ const UserDashboard = () => {
                                     const isFull = slot.bookedSlots >= slot.totalSlots;
                                     const percent = Math.min((slot.bookedSlots / slot.totalSlots) * 100, 100);
 
-                                    // Custom formatter to read UTC components as Local Time without checking browser timezone
+                                    // Format time in IST timezone
                                     const formatISTTime = (isoString) => {
-                                        const d = new Date(isoString);
-                                        let hours = d.getUTCHours();
-                                        const minutes = d.getUTCMinutes().toString().padStart(2, '0');
-                                        const ampm = hours >= 12 ? 'PM' : 'AM';
-                                        hours = hours % 12;
-                                        hours = hours ? hours : 12;
-                                        return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+                                        return new Date(isoString).toLocaleTimeString('en-IN', {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            hour12: true,
+                                            timeZone: 'Asia/Kolkata'
+                                        });
                                     };
 
                                     const formatISTDate = (isoString) => {
-                                        const d = new Date(isoString);
-                                        const day = d.getUTCDate();
-                                        const month = d.toLocaleString('en-IN', { month: 'short', timeZone: 'UTC' });
-                                        // Or just getUTCMonth and map it. toLocaleString with UTC timezone is safe.
-                                        const year = d.getUTCFullYear();
-                                        // Get weekday
-                                        const weekday = d.toLocaleString('en-IN', { weekday: 'short', timeZone: 'UTC' });
-                                        return `${weekday}, ${day} ${month} ${year}`;
+                                        return new Date(isoString).toLocaleDateString('en-IN', {
+                                            weekday: 'short',
+                                            day: 'numeric',
+                                            month: 'short',
+                                            year: 'numeric',
+                                            timeZone: 'Asia/Kolkata'
+                                        });
                                     };
 
                                     return (

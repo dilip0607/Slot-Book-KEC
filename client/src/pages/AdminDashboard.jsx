@@ -556,7 +556,7 @@ const AdminDashboard = () => {
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <h3 className="text-xl font-bold text-gray-800">{event.title}</h3>
-                                            <p className="text-sm text-gray-500 mt-1">Archived on: {new Date(event.deletedAt).toLocaleDateString()}</p>
+                                            <p className="text-sm text-gray-500 mt-1">Archived on: {new Date(event.deletedAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
                                             <div className="flex gap-2 mt-2">
                                                 <span className="inline-block bg-gray-200 text-xs px-2 py-1 rounded text-gray-700">
                                                     For: {event.targetAudience}
@@ -622,7 +622,7 @@ const AdminDashboard = () => {
                                                                         <td className="px-4 py-2 text-sm text-gray-500">{reg.user.rollNumber}</td>
                                                                         <td className="px-4 py-2 text-sm text-gray-500">{reg.user.department}</td>
                                                                         <td className="px-4 py-2 text-sm text-gray-500">
-                                                                            {s ? new Date(s.startTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', hour12: true }) : 'N/A'}
+                                                                            {s ? new Date(s.startTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', hour12: true, timeZone: 'Asia/Kolkata' }) : 'N/A'}
                                                                         </td>
                                                                     </tr>
                                                                 );

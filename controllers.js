@@ -316,8 +316,8 @@ exports.register = async (req, res) => {
             emailService.sendSlotFullEmail(
                 adminEmail,
                 eventInfo.title,
-                new Date(slotInfo.startTime).toLocaleDateString(),
-                new Date(slotInfo.startTime).toLocaleTimeString()
+                new Date(slotInfo.startTime).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
+                new Date(slotInfo.startTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true })
             );
         }
     } catch (error) {
