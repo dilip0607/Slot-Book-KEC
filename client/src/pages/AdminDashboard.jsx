@@ -138,10 +138,17 @@ const AdminDashboard = () => {
         }
     };
 
-    // Helper to create a UTC Date object from local string components
-    // e.g. "2025-01-29", "10:00" -> Date("2025-01-29T10:00:00.000Z")
+    // Helper: Converts a date string + IST time string into a proper UTC ISO string.
+    // The admin always enters time in IST, so we subtract 5h30m to store as UTC.
     const createISTDate = (dateStr, timeStr) => {
-        return new Date(`${dateStr}T${timeStr}:00.000Z`).toISOString();
+        // Create a Date object treating dateStr+timeStr as IST (UTC+5:30)
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        // IST offset = 5h30m = 330 minutes
+        const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+        // Construct the date in UTC by subtracting the IST offset
+        const utcMs = Date.UTC(year, month - 1, day, hours, minutes, 0, 0) - IST_OFFSET_MS;
+        return new Date(utcMs).toISOString();
     };
 
     const handleCreateEvent = async (e) => {
