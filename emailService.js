@@ -1,60 +1,58 @@
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
+const axios = require('axios');
 
 dotenv.config();
 
-// Configuration
-const EMAIL_CONFIG = {
-    primary: {
-        user: process.env.EMAIL_USER_1 || process.env.EMAIL_USER, // Backwards compatibility
-        pass: process.env.EMAIL_PASS_1 || process.env.EMAIL_PASS,
-        limit: 500, // Daily limit (approx for free Gmail)
-        count: 0,
-        lastReset: Date.now()
-    },
-    secondary: {
-        user: process.env.EMAIL_USER_2,
-        pass: process.env.EMAIL_PASS_2,
-        limit: 500,
-        count: 0,
-        lastReset: Date.now()
+// Helper to get environment variables handling extra spaces
+const getCleanEnvVar = (baseKey) => {
+    const keysToCheck = [
+        `${baseKey} `,
+        ` ${baseKey}`,
+        baseKey
+    ];
+    for (const k of keysToCheck) {
+        if (process.env[k] !== undefined) {
+            const val = process.env[k].trim();
+            if (val) return val;
+        }
     }
+    return null;
 };
+
+// Cleaned Configuration
+const EMAIL_USER = getCleanEnvVar('EMAIL_USER');
+const EMAIL_PASS = getCleanEnvVar('EMAIL_PASS');
+const GMAIL_CLIENT_ID = getCleanEnvVar('GMAIL_CLIENT_ID');
+const GMAIL_CLIENT_SECRET = getCleanEnvVar('GMAIL_CLIENT_SECRET');
+const GMAIL_REFRESH_TOKEN = getCleanEnvVar('GMAIL_REFRESH_TOKEN');
 
 const RATE_LIMIT_MS = 2000; // 2 seconds delay between emails
 const MAX_RETRIES = 3;
 
-// Reset counters every 24 hours
-const resetCountersIfNeeded = (senderConfig) => {
-    const oneDay = 24 * 60 * 60 * 1000;
-    if (Date.now() - senderConfig.lastReset > oneDay) {
-        senderConfig.count = 0;
-        senderConfig.lastReset = Date.now();
-        console.log(`🔄 Reset daily email limit for ${senderConfig.user}`);
-    }
-};
-
-// Create Transporters
-const createTransporter = (user, pass) => {
-    if (!user || !pass) return null;
-    return nodemailer.createTransport({
+// Initialize SMTP Transporter as fallback/primary SMTP
+let smtpTransporter = null;
+if (EMAIL_USER && EMAIL_PASS) {
+    smtpTransporter = nodemailer.createTransport({
         service: 'gmail',
-        auth: { user, pass }
+        auth: {
+            user: EMAIL_USER,
+            pass: EMAIL_PASS
+        }
     });
-};
+}
 
-const transporters = {
-    primary: createTransporter(EMAIL_CONFIG.primary.user, EMAIL_CONFIG.primary.pass),
-    secondary: createTransporter(EMAIL_CONFIG.secondary.user, EMAIL_CONFIG.secondary.pass)
-};
+const isApiConfigured = !!(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN);
 
-if (!transporters.primary) console.warn('⚠️ Primary Email Sender not configured.');
-if (!transporters.secondary) console.warn('⚠️ Secondary Email Sender not configured.');
+console.log('✉️ Email Service Initialized:');
+console.log(`   - Sender: ${EMAIL_USER || 'Not Configured'}`);
+console.log(`   - Gmail API support: ${isApiConfigured ? 'Available' : 'Not Configured'}`);
+console.log(`   - Gmail SMTP support: ${smtpTransporter ? 'Available' : 'Not Configured'}`);
 
 /**
- * Dual Email Queue with Failover
+ * Robust Email Queue
  */
-class DualEmailQueue {
+class EmailQueue {
     constructor() {
         this.queue = [];
         this.isProcessing = false;
@@ -62,104 +60,129 @@ class DualEmailQueue {
 
     enqueue(mailOptions) {
         this.queue.push({ ...mailOptions, retries: 0 });
-        this.processQueue();
+        this.processQueue().catch(err => {
+            console.error('💥 Unhandled error in processQueue:', err);
+        });
     }
 
     async processQueue() {
         if (this.isProcessing || this.queue.length === 0) return;
 
         this.isProcessing = true;
-        const task = this.queue.shift(); // Get first task
-
-        let sender = 'primary';
-
-        resetCountersIfNeeded(EMAIL_CONFIG.primary);
-        resetCountersIfNeeded(EMAIL_CONFIG.secondary);
-
-        // Logic to choose sender
-        // 1. If Primary is not configured or over limit -> Switch to Secondary
-        if (!transporters.primary || EMAIL_CONFIG.primary.count >= EMAIL_CONFIG.primary.limit) {
-            sender = 'secondary';
-        }
-
-        // 2. If Secondary is CHOSEN but not configured or over limit
-        if (sender === 'secondary' && (!transporters.secondary || EMAIL_CONFIG.secondary.count >= EMAIL_CONFIG.secondary.limit)) {
-            console.error('⛔ CRITICAL: Both email senders reached daily limit or are unconfigured.');
-            // Drop the email or maybe requeue with very long delay? 
-            // For now, logged and dropped to avoid infinite loops/spam.
-            this.handleCompletion();
-            return;
-        }
+        const task = this.queue.shift();
 
         try {
-            await this.attemptSend(task, sender);
+            await this.attemptSendWithFallback(task);
         } catch (error) {
-            console.warn(`⚠️ Failed sending via ${sender}: ${error.message}`);
+            console.error(`❌ Failed to send email to ${task.to} after all attempts/fallbacks:`, error.message);
+            this.handleRetry(task);
+        } finally {
+            this.handleCompletion();
+        }
+    }
 
-            // Failover Logic: If we tried primary and it failed, try secondary.
-            if (sender === 'primary' && transporters.secondary && EMAIL_CONFIG.secondary.count < EMAIL_CONFIG.secondary.limit) {
-                console.log(`🔀 Switching to secondary sender...`);
-                try {
-                    await this.attemptSend(task, 'secondary');
-                } catch (failoverError) {
-                    console.error(`❌ Failover also failed: ${failoverError.message}`);
-                    this.handleRetry(task);
+    async attemptSendWithFallback(task) {
+        // Mode 1: Try Gmail REST API if configured
+        if (isApiConfigured) {
+            try {
+                console.log(`✉️ Attempting to send email via Gmail REST API to ${task.to}...`);
+                await this.sendViaGmailApi(task);
+                return; // Success!
+            } catch (apiError) {
+                console.warn(`⚠️ Gmail REST API failed: ${apiError.message}`);
+                if (apiError.response && apiError.response.data) {
+                    console.warn('API Error details:', JSON.stringify(apiError.response.data));
                 }
-            } else {
-                // If we were already on secondary, or secondary is not available -> Retry later
-                console.error(`❌ No failover available.`);
-                this.handleRetry(task);
+                // Fall through to SMTP fallback
             }
         }
 
-        this.handleCompletion();
+        // Mode 2: Fall back to SMTP with App Password
+        if (smtpTransporter) {
+            console.log(`✉️ Attempting to send email via Gmail SMTP to ${task.to}...`);
+            await this.sendViaSmtp(task);
+            return; // Success!
+        }
+
+        throw new Error('No working email transporter configured (Gmail API and SMTP both unavailable or failed)');
     }
 
-    async attemptSend(task, senderKey) {
-        const transporter = transporters[senderKey];
-        const config = EMAIL_CONFIG[senderKey];
+    async sendViaGmailApi(task) {
+        // 1. Exchange refresh token for an access token
+        const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+            client_id: GMAIL_CLIENT_ID,
+            client_secret: GMAIL_CLIENT_SECRET,
+            refresh_token: GMAIL_REFRESH_TOKEN,
+            grant_type: 'refresh_token'
+        });
 
-        if (!transporter) throw new Error(`${senderKey} transporter not initialized`);
+        const accessToken = tokenResponse.data.access_token;
 
-        // Override 'from' to match the actual sender to avoid spam flags
+        // 2. Build MIME email
+        const emailLines = [
+            `To: ${task.to}`,
+            `Subject: =?utf-8?B?${Buffer.from(task.subject).toString('base64')}?=`,
+            'MIME-Version: 1.0',
+            'Content-Type: text/html; charset=utf-8',
+            'Content-Transfer-Encoding: 7bit',
+            '',
+            task.html
+        ];
+        const email = emailLines.join('\r\n');
+        const base64SafeUrlRaw = Buffer.from(email)
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+
+        // 3. Send via Gmail REST API
+        await axios.post(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+            { raw: base64SafeUrlRaw },
+            {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        console.log(`✅ Email sent successfully via Gmail API to ${task.to}`);
+    }
+
+    async sendViaSmtp(task) {
         const mailOptions = {
             ...task,
-            from: `KEC Slot Booking <${config.user}>`
+            from: `KEC Slot Booking <${EMAIL_USER}>`
         };
-
-        const info = await transporter.sendMail(mailOptions);
-        config.count++;
-        console.log(`✅ Email sent via ${senderKey} (${config.count}/${config.limit}) to ${task.to}`);
-        return info;
+        await smtpTransporter.sendMail(mailOptions);
+        console.log(`✅ Email sent successfully via Gmail SMTP to ${task.to}`);
     }
 
     handleRetry(task) {
         if (task.retries < MAX_RETRIES) {
             task.retries++;
-            console.log(`...Re-queuing (Attempt ${task.retries + 1}/${MAX_RETRIES + 1})`);
+            console.log(`🔄 Re-queuing email to ${task.to} (Attempt ${task.retries + 1}/${MAX_RETRIES + 1})...`);
             this.queue.push(task);
         } else {
-            console.error(`💀 Email discarded after ${MAX_RETRIES} retries.`);
+            console.error(`💀 Email to ${task.to} discarded after ${MAX_RETRIES} retries.`);
         }
     }
 
     handleCompletion() {
         setTimeout(() => {
             this.isProcessing = false;
-            this.processQueue();
+            this.processQueue().catch(err => {
+                console.error('💥 Unhandled error in processQueue completion:', err);
+            });
         }, RATE_LIMIT_MS);
     }
 }
 
-const emailQueue = new DualEmailQueue();
+const emailQueue = new EmailQueue();
 
-/**
- * Shared function to queue email
- */
 const queueEmail = (to, subject, htmlContent) => {
-    // Basic validation
-    if (!EMAIL_CONFIG.primary.user && !EMAIL_CONFIG.secondary.user) {
-        console.warn('Skipping email (No credentials):', subject);
+    if (!EMAIL_USER) {
+        console.warn('⚠️ Skipping email (No EMAIL_USER credentials configured):', subject);
         return;
     }
 
